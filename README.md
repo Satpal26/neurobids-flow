@@ -107,9 +107,9 @@ sequenceDiagram
 |---|---|---|
 | BrainProducts ActiChamp Plus | .vhdr / .vmrk / .eeg | ✅ Done |
 | Neuroscan NuAmps | .cnt | ✅ Done |
-| OpenBCI Cyton | .txt / .bdf | 🔄 In Progress |
-| Muse 2 | .csv / .xdf | 🔄 Coming Soon |
-| Emotiv EPOC | .edf / .csv | 🔄 Coming Soon |
+| OpenBCI Cyton | .txt / .bdf | ✅ Done |
+| Muse 2 | .csv / .xdf | ✅ Done |
+| Emotiv EPOC+ | .edf / .csv | ✅ Done |
 
 ## Test Results
 ```
