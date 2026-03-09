@@ -8,6 +8,7 @@ import pandas as pd
 from pathlib import Path
 from ..plugins.base import EventInfo
 from ..plugins.brainproducts import BrainProductsPlugin
+from ..plugins.neuroscan import NeuroscanPlugin
 
 
 class EEGConverter:
@@ -25,6 +26,7 @@ class EEGConverter:
         # As we build more plugins, we add them to this list
         self.plugins = [
             BrainProductsPlugin(),
+            NeuroscanPlugin(),
         ]
 
     def detect_plugin(self, filepath: str):
