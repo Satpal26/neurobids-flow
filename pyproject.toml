@@ -1,0 +1,14 @@
+[project]
+name = "eeg2bids-unify"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.3.1",
+    "mne>=1.11.0",
+    "mne-bids>=0.18.0",
+    "pandas>=3.0.1",
+    "pyxdf>=1.17.3",
+    "pyyaml>=6.0.3",
+]
