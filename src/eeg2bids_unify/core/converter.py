@@ -9,6 +9,9 @@ from pathlib import Path
 from ..plugins.base import EventInfo
 from ..plugins.brainproducts import BrainProductsPlugin
 from ..plugins.neuroscan import NeuroscanPlugin
+from ..plugins.openbci import OpenBCIPlugin
+from ..plugins.muse import MusePlugin
+from ..plugins.emotiv import EmotivPlugin
 
 
 class EEGConverter:
@@ -22,11 +25,13 @@ class EEGConverter:
     """
 
     def __init__(self):
-        # Register all available plugins here
-        # As we build more plugins, we add them to this list
+        # All 5 hardware plugins registered
         self.plugins = [
             BrainProductsPlugin(),
             NeuroscanPlugin(),
+            OpenBCIPlugin(),
+            MusePlugin(),
+            EmotivPlugin(),
         ]
 
     def detect_plugin(self, filepath: str):
