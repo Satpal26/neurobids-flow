@@ -2,7 +2,7 @@
 
 A plugin-based Python tool for converting heterogeneous EEG hardware files into BIDS-EEG format.
 
-Built for NTU Singapore BCI Lab — Target 1 of the SSVEP research roadmap.
+
 
 ---
 
