@@ -214,37 +214,6 @@ wheels = [
 ]
 
 [[package]]
-name = "eeg2bids-unify"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "click" },
-    { name = "mne" },
-    { name = "mne-bids" },
-    { name = "pandas" },
-    { name = "pyxdf" },
-    { name = "pyyaml" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.3.1" },
-    { name = "mne", specifier = ">=1.11.0" },
-    { name = "mne-bids", specifier = ">=0.18.0" },
-    { name = "pandas", specifier = ">=3.0.1" },
-    { name = "pyxdf", specifier = ">=1.17.3" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.2" }]
-
-[[package]]
 name = "fonttools"
 version = "4.61.1"
 source = { registry = "https://pypi.org/simple" }
@@ -596,6 +565,37 @@ sdist = { url = "https://files.pythonhosted.org/packages/b6/9d/be59dca5fdfa720bb
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/2f/61cdb5a0e3fdbca99ee7d4275ba0e43b1e84dd866bca7a7de8cff30dece6/mne_bids-0.18.0-py3-none-any.whl", hash = "sha256:2c3ef03b99f92717cdf426a1a68e4279644ff9e34576a52db14529a0abc539bc", size = 178363, upload-time = "2025-12-23T14:24:55.448Z" },
 ]
+
+[[package]]
+name = "neurobids-flow"
+version = "1.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "click" },
+    { name = "mne" },
+    { name = "mne-bids" },
+    { name = "pandas" },
+    { name = "pyxdf" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.3.1" },
+    { name = "mne", specifier = ">=1.11.0" },
+    { name = "mne-bids", specifier = ">=0.18.0" },
+    { name = "pandas", specifier = ">=3.0.1" },
+    { name = "pyxdf", specifier = ">=1.17.3" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0.2" }]
 
 [[package]]
 name = "numpy"
