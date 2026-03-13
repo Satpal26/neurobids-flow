@@ -1,6 +1,8 @@
 # NeuroBIDS-Flow
 
-A modular, plugin-based Python framework for standardizing multi-source EEG recordings into BIDS-EEG format. Supports both research-grade and consumer EEG hardware through a unified graphical and command-line interface.
+**Interoperable passive BCI workflows across consumer EEG sources through BIDS-EEG-based harmonization.**
+
+Consumer EEG platforms — Muse 2, Emotiv EPOC+, OpenBCI Cyton — produce structurally incompatible output formats, making cross-device passive BCI research practically infeasible. NeuroBIDS-Flow solves this by converting heterogeneous consumer EEG recordings into a unified BIDS-EEG representation through a modular graphical framework with automated event harmonization.
 
 ---
 
@@ -9,8 +11,8 @@ A modular, plugin-based Python framework for standardizing multi-source EEG reco
 ### 1 — Install
 
 ```bash
-git clone https://github.com/Satpal26/eeg2bids-unify.git
-cd eeg2bids-unify
+git clone https://github.com/Satpal26/neurobids-flow.git
+cd neurobids-flow
 uv pip install -e ".[dev]"
 ```
 
@@ -20,30 +22,25 @@ uv pip install -e ".[dev]"
 python sample_data/generate_samples.py
 ```
 
-This creates one valid sample file per supported hardware format in `sample_data/generated/`.
+Creates one valid sample file per supported format in `sample_data/generated/`.
 
 ### 3 — Run a conversion
 
 ```bash
-# BrainProducts
-eeg2bids-unify convert \
-  --file sample_data/generated/sample_brainproducts.vhdr \
-  --bids-root ./bids_output --subject 01 --session 01 --task ssvep
-
-# OpenBCI
-eeg2bids-unify convert \
+# OpenBCI Cyton
+neurobids-flow convert \
   --file sample_data/generated/sample_openbci.txt \
-  --bids-root ./bids_output --subject 02 --session 01 --task ssvep
+  --bids-root ./bids_output --subject 01 --session 01 --task workload
 
-# Muse CSV
-eeg2bids-unify convert \
+# Muse 2 (Mind Monitor CSV)
+neurobids-flow convert \
   --file sample_data/generated/sample_muse.csv \
-  --bids-root ./bids_output --subject 03 --session 01 --task ssvep
+  --bids-root ./bids_output --subject 02 --session 01 --task workload
 
-# Emotiv
-eeg2bids-unify convert \
+# Emotiv EPOC+
+neurobids-flow convert \
   --file sample_data/generated/sample_emotiv.edf \
-  --bids-root ./bids_output --subject 04 --session 01 --task ssvep
+  --bids-root ./bids_output --subject 03 --session 01 --task workload
 ```
 
 ### 4 — Check output
@@ -58,18 +55,24 @@ ls bids_output/sub-01/ses-01/eeg/
 uv run pytest tests/ -v
 ```
 
+### 6 — Launch GUI (optional)
+
+```bash
+python neurobids_gui.py
+```
+
 ---
 
 ## Supported Hardware
 
-| Hardware | File Format | Type | Status |
+| Device | File Format | Type | Status |
 |---|---|---|---|
+| InteraXon Muse 2 (Mind Monitor) | .csv | Consumer | ✅ Done |
+| InteraXon Muse 2 (MuseLSL) | .xdf | Consumer | ✅ Done |
+| Emotiv EPOC+ | .edf | Consumer | ✅ Done |
+| OpenBCI Cyton | .txt | Consumer | ✅ Done |
 | BrainProducts ActiChamp Plus | .vhdr / .vmrk / .eeg | Research | ✅ Done |
 | Neuroscan NuAmps | .cnt | Research | ✅ Done |
-| OpenBCI Cyton | .txt | Consumer | ✅ Done |
-| Muse 2 (Mind Monitor) | .csv | Consumer | ✅ Done |
-| Muse 2 (MuseLSL) | .xdf | Consumer | ✅ Done |
-| Emotiv EPOC+ | .edf | Consumer | ✅ Done |
 
 ---
 
@@ -77,39 +80,39 @@ uv run pytest tests/ -v
 
 ```mermaid
 graph TB
-    subgraph INPUT["Input Layer"]
-        A1[".vhdr — BrainProducts"]
-        A2[".cnt — Neuroscan"]
-        A3[".txt — OpenBCI"]
+    subgraph GUI["GUI Layer (Optional)"]
+        G1["Dear PyGui Node Editor"]
+        G2["EEG Signal Preview"]
+        G3["Execution Console"]
+    end
+    subgraph INPUT["Consumer EEG Sources"]
+        A3[".txt — OpenBCI Cyton"]
         A4[".csv / .xdf — Muse 2"]
         A5[".edf — Emotiv EPOC+"]
     end
-    subgraph PLUGINS["Hardware Abstraction Layer"]
-        B1["BrainProductsPlugin"]
-        B2["NeuroscanPlugin"]
+    subgraph PLUGINS["Hardware Plugin Layer"]
         B3["OpenBCIPlugin"]
         B4["MusePlugin"]
         B5["EmotivPlugin"]
     end
-    subgraph CORE["Core Processing Engine"]
+    subgraph CORE["Core Engine"]
         C1["EEGConverter\nauto-detect + orchestrate"]
-        C2["EventHarmonizer\nnormalize all event formats"]
-        C3["YAML Config Loader\nno-code dataset mapping"]
-        C4["BIDS Validator\nMNE-BIDS + bids-validator"]
+        C2["EventHarmonizer\nnormalize all marker formats"]
+        C3["YAML Config Loader\nno-code event mapping"]
+        C4["BIDS Validator\nMNE-BIDS validation"]
     end
     subgraph OUTPUT["BIDS-EEG Output"]
-        D1["sub-XX/eeg/*_eeg.vhdr"]
+        D1["sub-XX/eeg/*_eeg.*"]
         D2["sub-XX/eeg/*_events.tsv"]
         D3["sub-XX/eeg/*_eeg.json"]
         D4["sub-XX/eeg/*_channels.tsv"]
         D5["dataset_description.json"]
     end
-    A1 --> B1
-    A2 --> B2
+    G1 --> C1
     A3 --> B3
     A4 --> B4
     A5 --> B5
-    B1 & B2 & B3 & B4 & B5 --> C1
+    B3 & B4 & B5 --> C1
     C1 --> C2 --> D2
     C1 --> C3
     C1 --> C4
@@ -125,18 +128,18 @@ graph TB
 
 ```mermaid
 flowchart TD
-    A["EEG File Input"] --> B["EEGConverter.detect_plugin()"]
+    A["Consumer EEG File"] --> B["EEGConverter.detect_plugin()"]
     B --> C{Check extension + fingerprint}
-    C -->|".vhdr"| D["BrainProductsPlugin"]
-    C -->|".cnt"| E["NeuroscanPlugin"]
     C -->|".txt"| F["OpenBCIPlugin"]
     C -->|".xdf or .csv"| G["MusePlugin"]
     C -->|".edf"| H["EmotivPlugin"]
+    C -->|".vhdr"| D["BrainProductsPlugin"]
+    C -->|".cnt"| E["NeuroscanPlugin"]
     C -->|"unknown"| I["ValueError: No plugin found"]
     D & E & F & G & H --> J["plugin.read_raw()"]
     J --> K["plugin.extract_events()"]
     K --> L["plugin.get_metadata()"]
-    L --> M["EEGConverter orchestrates BIDS write"]
+    L --> M["EEGConverter writes BIDS output"]
 ```
 
 ---
@@ -171,15 +174,15 @@ sequenceDiagram
 
 ## EventHarmonizer — Supported Input Formats
 
-The EventHarmonizer normalizes all raw event marker types into a unified BIDS-compliant `events.tsv`:
+Normalizes all consumer EEG marker types into a unified BIDS-compliant `events.tsv`:
 
 | Input Format | Example | Source |
 |---|---|---|
-| TTL Triggers | `S  1`, `S  2`, `S 99` | BrainProducts, Neuroscan |
-| Numerical IDs | `1`, `2`, `99` | OpenBCI marker column |
 | LSL Markers | Lab Streaming Layer stream | Muse XDF |
-| Software Strings | `stimulus_6hz`, `rest` | Muse CSV, Emotiv |
+| Software Strings | `eyes_open`, `workload_high` | Muse CSV, Emotiv |
 | EDF Annotations | Annotation-based labels | Emotiv EDF |
+| Numerical IDs | `1`, `2`, `99` | OpenBCI marker column |
+| TTL Triggers | `S  1`, `S  2` | BrainProducts, Neuroscan |
 
 Output columns: `onset | duration | trial_type | original_value | trigger_source`
 
@@ -190,14 +193,23 @@ Output columns: `onset | duration | trial_type | original_value | trigger_source
 No source-code changes needed between datasets. Edit `configs/default_config.yaml`:
 
 ```yaml
-dataset_name: "My EEG Study"
-task_label: ssvep
-power_line_freq: 50
+dataset:
+  name: "My Passive BCI Study"
+  authors: ["Your Name"]
+  institution: "Your Institution"
+
+recording:
+  task: "workload"
+  power_line_freq: 50.0
 
 event_mapping:
-  "S  1": stimulus_6hz
-  "S  2": stimulus_8hz
-  "99":   rest
+  "eyes_open":     "rest_open"
+  "eyes_closed":   "rest_closed"
+  "workload_low":  "cognitive_low"
+  "workload_high": "cognitive_high"
+  "1":             "rest_open"
+  "2":             "rest_closed"
+  "99":            "rest"
 
 output:
   validate_bids: true
@@ -212,15 +224,15 @@ output:
 19 passed in 3.92s
 ```
 
-All 5 hardware plugins validated. End-to-end BIDS conversion tested across all supported formats — all passing MNE-BIDS validation.
+All plugins validated. End-to-end BIDS conversion tested across consumer EEG formats — all passing MNE-BIDS validation.
 
 ---
 
 ## Project Structure
 
 ```
-eeg2bids-unify/
-    src/eeg2bids_unify/
+neurobids-flow/
+    src/neurobids_flow/
         plugins/
             base.py              # abstract plugin interface
             brainproducts.py     # BrainProducts ActiChamp Plus
@@ -241,6 +253,7 @@ eeg2bids-unify/
         default_config.yaml      # default configuration
     tests/
         test_plugins.py          # 19 tests
+    neurobids_gui.py             # Dear PyGui node-based GUI
 ```
 
 ---
@@ -257,4 +270,4 @@ eeg2bids-unify/
 
 ## Author
 
-Satpal — B.Tech Biomedical Engineering, NIT Raipur
+Satpal Singh — National Institute of Technology Raipur
