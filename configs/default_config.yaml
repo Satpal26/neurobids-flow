@@ -15,22 +15,35 @@ recording:
   subject_prefix: "sub"
   session_prefix: "ses"
 
-# ── Event Mapping ─────────────────────────────────────────
-# Map hardware-specific trigger codes → standard trial_type names
-# Add your own mappings here based on your experiment design
+# ── Event Mapping ──────────────────────────────────────────────────────────────
+# Map hardware-specific marker codes → standard trial_type names
+# Examples below cover common passive BCI paradigms across consumer EEG devices
+# Add or modify mappings based on your experiment design
 event_mapping:
-  "1":  "stimulus_6hz"
-  "2":  "stimulus_8hz"
-  "3":  "stimulus_10hz"
-  "4":  "stimulus_12hz"
-  "5":  "stimulus_15hz"
-  "6":  "stimulus_20hz"
-  "S  1": "stimulus_6hz"
-  "S  2": "stimulus_8hz"
-  "S  3": "stimulus_10hz"
-  "S  4": "stimulus_12hz"
-  "99": "rest"
-  "0":  "rest"
+  # Passive BCI — resting state
+  "eyes_open":        "rest_open"
+  "eyes_closed":      "rest_closed"
+  "rest":             "rest"
+
+  # Passive BCI — cognitive state
+  "workload_low":     "cognitive_low"
+  "workload_high":    "cognitive_high"
+  "fatigue":          "fatigue"
+  "alert":            "alert"
+
+  # Passive BCI — emotion
+  "valence_pos":      "emotion_positive"
+  "valence_neg":      "emotion_negative"
+  "arousal_high":     "arousal_high"
+  "arousal_low":      "arousal_low"
+
+  # Numeric codes (OpenBCI / Emotiv)
+  "1":                "rest_open"
+  "2":                "rest_closed"
+  "3":                "cognitive_low"
+  "4":                "cognitive_high"
+  "99":               "rest"
+  "0":                "rest"
 
 # ── Hardware Overrides ────────────────────────────────────
 # Override default hardware metadata if needed
