@@ -1,7 +1,6 @@
 # default_config.yaml
-# YAML configuration for eeg2bids-unify
+# YAML configuration for NeuroBIDS-Flow
 # Users can copy and customize this for their own dataset
-
 # ── Dataset Info ──────────────────────────────────────────
 dataset:
   name: "My EEG Dataset"
