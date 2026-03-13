@@ -1,7 +1,7 @@
 """
-eeg2bids-unify -- Node-Based GUI
+NeuroBIDS-Flow — Node-Based GUI
 Built with Dear PyGui + EEG waveform preview
-Run: uv pip install dearpygui mne && python eeg2bids_gui.py
+Run: uv pip install dearpygui mne && python neurobids_gui.py
 """
 
 import dearpygui.dearpygui as dpg
@@ -58,7 +58,6 @@ def render_eeg(raw, n_ch=8, dur=10.0):
     n_ch   = min(n_ch, len(raw.ch_names))
     data, _= raw[:n_ch, :n_samp]
 
-    # Normalize each channel
     normed = np.zeros_like(data)
     for i in range(n_ch):
         ch  = data[i]
@@ -75,7 +74,6 @@ def render_eeg(raw, n_ch=8, dur=10.0):
         amp   = row_h * 0.40
         color = CH_COLORS[i % len(CH_COLORS)]
 
-        # Divider line between channels
         dy = int((i + 1) * row_h)
         if 0 < dy < H:
             pixels[dy, :] = [0.14, 0.22, 0.32, 1.0]
@@ -131,16 +129,12 @@ def load_preview(filepath):
         dur  = min(10.0, raw.times[-1])
         dpg.set_value(EEG_TEX, render_eeg(raw, n_ch=n_ch, dur=dur))
 
-        # Update channel labels
         if dpg.does_item_exist("ch_labels"):
             dpg.delete_item("ch_labels", children_only=True)
             rh = PREVIEW_H / n_ch
             for i, ch in enumerate(raw.ch_names[:n_ch]):
                 col = [int(c * 255) for c in CH_COLORS[i % len(CH_COLORS)][:3]]
-                dpg.add_text(
-                    ch[:12],
-                    color=tuple(col),
-                    parent="ch_labels")
+                dpg.add_text(ch[:12], color=tuple(col), parent="ch_labels")
                 if i < n_ch - 1:
                     dpg.add_spacer(height=int(rh) - 18, parent="ch_labels")
 
@@ -269,7 +263,7 @@ def add_config_node(pos=(420, 390)):
             dpg.add_text("Dataset Name:")
             dpg.add_input_text(tag=f"{nid}_name", default_value="My EEG Dataset", width=245)
             dpg.add_text("Institution:")
-            dpg.add_input_text(tag=f"{nid}_inst", default_value="NTU Singapore", width=245)
+            dpg.add_input_text(tag=f"{nid}_inst", default_value="", width=245)
             dpg.add_text("Task Label:")
             dpg.add_input_text(tag=f"{nid}_task", default_value="ssvep", width=245)
             dpg.add_spacer(height=4)
@@ -382,8 +376,8 @@ def run_pipeline():
                 try:
                     import sys
                     sys.path.insert(0, str(Path(__file__).parent / "src"))
-                    from eeg2bids_unify.core.config import load_config
-                    from eeg2bids_unify.core.converter import EEGConverter
+                    from neurobids_flow.core.config import load_config
+                    from neurobids_flow.core.converter import EEGConverter
                     log(f"[{device}] Backend loaded", "OK")
                     dpg.set_value(progress_tag, 0.3)
                     cfg = load_config()
@@ -470,7 +464,7 @@ def apply_theme():
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     dpg.create_context()
-    dpg.create_viewport(title="eeg2bids-unify  |  Node Pipeline Editor",
+    dpg.create_viewport(title="NeuroBIDS-Flow  |  Node Pipeline Editor",
                         width=1340, height=880, min_width=900, min_height=640)
     apply_theme()
 
@@ -485,7 +479,7 @@ def main():
 
         # Toolbar
         with dpg.group(horizontal=True):
-            dpg.add_text("eeg2bids-unify", color=(0,200,180))
+            dpg.add_text("NeuroBIDS-Flow", color=(0,200,180))
             dpg.add_text("  Node Pipeline Editor", color=(110,140,170))
             dpg.add_spacer(width=18)
             dpg.add_button(label="  Run Pipeline  ", callback=run_pipeline,   width=130)
@@ -588,7 +582,7 @@ def main():
     dpg.set_item_width("main_win",  w)
     dpg.set_item_height("main_win", h)
 
-    log("eeg2bids-unify GUI ready", "OK")
+    log("NeuroBIDS-Flow GUI ready", "OK")
     log("No emojis -- all labels use text for Windows compatibility", "INFO")
     log("Click 'Load Demo' for pre-wired pipeline", "INFO")
     log("Click 'Preview EEG' on any hardware node after setting file path", "INFO")
