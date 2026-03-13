@@ -5,14 +5,14 @@
 import pytest
 import numpy as np
 import mne
-from src.eeg2bids_unify.plugins.brainproducts import BrainProductsPlugin
-from src.eeg2bids_unify.plugins.neuroscan import NeuroscanPlugin
-from src.eeg2bids_unify.plugins.openbci import OpenBCIPlugin
-from src.eeg2bids_unify.plugins.muse import MusePlugin
-from src.eeg2bids_unify.plugins.emotiv import EmotivPlugin
-from src.eeg2bids_unify.plugins.base import EventInfo
-from src.eeg2bids_unify.core.harmonizer import EventHarmonizer
-from src.eeg2bids_unify.core.config import load_config
+from src.neurobids_flow.plugins.brainproducts import BrainProductsPlugin
+from src.neurobids_flow.plugins.neuroscan import NeuroscanPlugin
+from src.neurobids_flow.plugins.openbci import OpenBCIPlugin
+from src.neurobids_flow.plugins.muse import MusePlugin
+from src.neurobids_flow.plugins.emotiv import EmotivPlugin
+from src.neurobids_flow.plugins.base import EventInfo
+from src.neurobids_flow.core.harmonizer import EventHarmonizer
+from src.neurobids_flow.core.config import load_config
 
 
 # ── Plugin Detection Tests ─────────────────────────────────

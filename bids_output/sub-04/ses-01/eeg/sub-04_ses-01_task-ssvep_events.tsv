@@ -1,0 +1,4 @@
+onset	duration	trial_type	value	trigger_source
+2.0	0.0	stimulus_6hz	1	software
+5.0	0.0	stimulus_8hz	2	software
+8.0	0.0	stimulus_6hz	1	software

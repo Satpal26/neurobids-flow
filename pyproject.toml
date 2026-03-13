@@ -1,7 +1,7 @@
 [project]
-name = "eeg2bids-unify"
-version = "0.1.0"
-description = "Add your description here"
+name = "neurobids-flow"
+version = "1.0.0"
+description = "A modular graphical framework for standardizing multi-source EEG recordings to BIDS-EEG"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -12,14 +12,11 @@ dependencies = [
     "pyxdf>=1.17.3",
     "pyyaml>=6.0.3",
 ]
-
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
 ]
-
 [tool.setuptools.package-dir]
 "" = "src"
-
 [project.scripts]
-eeg2bids-unify = "eeg2bids_unify.cli:cli"
+neurobids-flow = "neurobids_flow.cli:cli"
