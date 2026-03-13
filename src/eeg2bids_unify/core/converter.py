@@ -112,12 +112,22 @@ class EEGConverter:
             datatype="eeg",
         )
 
-        # Step 8 — write BIDS
+# Step 8 — write BIDS
+        fmt_map = {
+            'BrainProductsPlugin': 'BrainVision',
+            'EmotivPlugin':        'EDF',
+            'NeuroscanPlugin':     'BrainVision',
+            'OpenBCIPlugin':       'BrainVision',
+            'MusePlugin':          'BrainVision',
+        }
+        bids_format = fmt_map.get(type(plugin).__name__, 'BrainVision')
+
         mne_bids.write_raw_bids(
-            raw=raw,
+            raw,
             bids_path=bids_path,
-            overwrite=self.config.output.overwrite,
-            verbose=self.config.output.verbose,
+            allow_preload=True,
+            format=bids_format,
+            overwrite=True,
         )
 
         # Step 9 — write harmonized events.tsv
