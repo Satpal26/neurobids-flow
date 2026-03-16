@@ -1,3 +1,18 @@
+
+## [1.1.0] — 2026-03-16
+
+### HED Semantic Annotation Integration
+
+- **EventHarmonizer** extended to support dual YAML config format — simple (`"1": "rest_open"`) and extended (`"1": {trial_type, hed}`)
+- **`write_events_json()`** — new method writes BIDS-compliant `events.json` sidecar with full HED string dictionary keyed by `trial_type`
+- **`has_hed()`** — new method returns True if any HED strings are configured
+- **`dataset_description.py`** — `inject_hed=True` now automatically adds `"HEDVersion": "8.2.0"` to `dataset_description.json`
+- **`GeneratedBy`** attribution block added to `dataset_description.json`
+- **`default_config.yaml`** — all passive BCI events now include full HED strings (resting state, workload, emotion)
+- **`hedtools>=0.5.0`** added to package dependencies
+- Tests expanded: 19 → 29 (7 new HED tests + 3 dataset description tests)
+- Output is now fully FAIR-compliant BIDS-EEG with semantic HED annotation
+
 # Changelog
 
 All notable changes to NeuroBIDS-Flow are documented here.
