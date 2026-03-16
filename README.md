@@ -188,6 +188,35 @@ Output columns: `onset | duration | trial_type | original_value | trigger_source
 
 ---
 
+## HED Semantic Annotation
+
+NeuroBIDS-Flow automatically injects [Hierarchical Event Descriptors (HED)](https://www.hedtags.org) into the BIDS-EEG output when HED strings are defined in your config.
+
+**What gets generated automatically:**
+
+| File | Content |
+|---|---|
+| `*_events.tsv` | `onset \| duration \| trial_type \| value \| trigger_source` |
+| `*_events.json` | HED string dictionary mapped to each `trial_type` |
+| `dataset_description.json` | `"HEDVersion": "8.2.0"` injected automatically |
+
+**Example `events.json` sidecar output:**
+```json
+{
+    "trial_type": {
+        "HED": {
+            "rest_open":      "Sensory-event, (Eyes, Open), Rest",
+            "rest_closed":    "Sensory-event, (Eyes, Closed), Rest",
+            "cognitive_high": "Cognitive-effort, Task-difficulty/High"
+        }
+    }
+}
+```
+
+This makes NeuroBIDS-Flow output fully FAIR-compliant — datasets are ready for cross-device mega-analyses and generalized passive BCI model training without any additional annotation steps.
+
+
+
 ## YAML Configuration
 
 No source-code changes needed between datasets. Edit `configs/default_config.yaml`:
