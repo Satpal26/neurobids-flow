@@ -1,40 +1,94 @@
 # dataset_description.py
-# Generates dataset_description.json — required for valid BIDS dataset
-# BIDS spec requires this file at the root of every BIDS dataset
+# Generates BIDS-compliant dataset_description.json
+# Injects HEDVersion when HED strings are present in the config
+# NeuroBIDS-Flow | NTU Singapore BCI Lab
+
+from __future__ import annotations
 
 import json
-from pathlib import Path
-from .config import AppConfig
+import os
+from dataclasses import dataclass, field
+from typing import Optional
 
 
-def generate_dataset_description(bids_root: str, config: AppConfig):
+# HED schema version used by NeuroBIDS-Flow
+HED_SCHEMA_VERSION = "8.2.0"
+
+
+@dataclass
+class DatasetDescription:
+    """BIDS dataset_description.json fields."""
+    name: str
+    authors: list[str] = field(default_factory=list)
+    institution: str = ""
+    ethics_approval: str = ""
+    hed_version: Optional[str] = None  # set to HED_SCHEMA_VERSION when HED is used
+
+
+def write_dataset_description(
+    bids_root: str,
+    description: DatasetDescription,
+    inject_hed: bool = False,
+) -> str:
     """
-    Creates dataset_description.json at BIDS root.
-    This is required by BIDS spec — without it the dataset is invalid.
+    Write BIDS-compliant dataset_description.json to bids_root.
+
+    Parameters
+    ----------
+    bids_root : str
+        Root directory of the BIDS dataset.
+    description : DatasetDescription
+        Dataset metadata.
+    inject_hed : bool
+        If True, injects HEDVersion into the JSON.
+        Set to True when EventHarmonizer has HED strings configured.
+
+    Returns
+    -------
+    str
+        Path to the written file.
     """
+    os.makedirs(bids_root, exist_ok=True)
+    filepath = os.path.join(bids_root, "dataset_description.json")
 
-    description = {
-        "Name": config.dataset.name,
-        "BIDSVersion": "1.9.0",
-        "DatasetType": "raw",
-        "Authors": config.dataset.authors if config.dataset.authors else ["Unknown"],
-        "InstitutionName": config.dataset.institution,
-        "EthicsApprovals": [config.dataset.ethics_approval] if config.dataset.ethics_approval else [],
-        "GeneratedBy": [
-            {
-                "Name": "eeg2bids-unify",
-                "Version": "0.1.0",
-                "CodeURL": "https://github.com/Satpal26/eeg2bids-unify"
-            }
-        ],
-        "HowToAcknowledge": "Please cite eeg2bids-unify when using this dataset."
-    }
+    # Load existing file if present (avoid overwriting fields set by mne-bids)
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            doc = json.load(f)
+    else:
+        doc = {}
 
-    output_path = Path(bids_root) / "dataset_description.json"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Required BIDS fields
+    doc["Name"] = description.name
+    doc["BIDSVersion"] = "1.9.0"
 
-    with open(output_path, "w") as f:
-        json.dump(description, f, indent=2)
+    # Optional fields
+    if description.authors:
+        doc["Authors"] = description.authors
+    if description.institution:
+        doc["InstitutionName"] = description.institution
+    if description.ethics_approval:
+        doc["EthicsApprovals"] = [description.ethics_approval]
 
-    print(f"[dataset] Written dataset_description.json to {output_path}")
-    return output_path
+    # HED injection — only when harmonizer has HED strings
+    if inject_hed:
+        doc["HEDVersion"] = HED_SCHEMA_VERSION
+    elif "HEDVersion" not in doc:
+        # Don't add it if not needed, don't remove it if already there
+        pass
+
+    # NeuroBIDS-Flow attribution
+    doc["GeneratedBy"] = [{
+        "Name": "NeuroBIDS-Flow",
+        "Version": "1.0.0",
+        "Description": (
+            "Modular graphical framework for standardizing multi-source "
+            "EEG recordings to BIDS-EEG with HED semantic annotation."
+        ),
+        "CodeURL": "https://github.com/Satpal26/neurobids-flow"
+    }]
+
+    with open(filepath, "w") as f:
+        json.dump(doc, f, indent=4)
+
+    return filepath

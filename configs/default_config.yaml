@@ -1,59 +1,115 @@
 # default_config.yaml
 # YAML configuration for NeuroBIDS-Flow
 # Users can copy and customize this for their own dataset
-# ── Dataset Info ──────────────────────────────────────────
+# ── Dataset Info ──────────────────────────────────────────────────────────────
 dataset:
-  name: "My EEG Dataset"
+  name: "My Passive BCI Study"
   authors: ["Your Name"]
   institution: "Your Institution"
   ethics_approval: "IRB-XXXX"
 
-# ── Recording Info ────────────────────────────────────────
+# ── Recording Info ────────────────────────────────────────────────────────────
 recording:
-  task: "ssvep"
+  task: "workload"
   power_line_freq: 50.0      # 50 for Asia/Europe, 60 for USA
   subject_prefix: "sub"
   session_prefix: "ses"
 
-# ── Event Mapping ──────────────────────────────────────────────────────────────
-# Map hardware-specific marker codes → standard trial_type names
-# Examples below cover common passive BCI paradigms across consumer EEG devices
-# Add or modify mappings based on your experiment design
+# ── Event Mapping ─────────────────────────────────────────────────────────────
+# Two supported formats:
+#
+# Simple (trial_type only):
+#   "99": "rest"
+#
+# Extended (trial_type + HED semantic annotation):
+#   "1":
+#     trial_type: "rest_open"
+#     hed: "Sensory-event, (Eyes, Open)"
+#
+# HED strings follow HED schema 8.2.0 — https://www.hedtags.org
+# When ANY event has a "hed" field, NeuroBIDS-Flow will:
+#   - Write events.json sidecar with full HED dictionary
+#   - Inject "HEDVersion": "8.2.0" into dataset_description.json
+# ──────────────────────────────────────────────────────────────────────────────
+
 event_mapping:
-  # Passive BCI — resting state
-  "eyes_open":        "rest_open"
-  "eyes_closed":      "rest_closed"
-  "rest":             "rest"
 
-  # Passive BCI — cognitive state
-  "workload_low":     "cognitive_low"
-  "workload_high":    "cognitive_high"
-  "fatigue":          "fatigue"
-  "alert":            "alert"
+  # ── Resting state ──────────────────────────────────────────────────────────
+  "eyes_open":
+    trial_type: "rest_open"
+    hed: "Sensory-event, (Eyes, Open), Rest"
 
-  # Passive BCI — emotion
-  "valence_pos":      "emotion_positive"
-  "valence_neg":      "emotion_negative"
-  "arousal_high":     "arousal_high"
-  "arousal_low":      "arousal_low"
+  "eyes_closed":
+    trial_type: "rest_closed"
+    hed: "Sensory-event, (Eyes, Closed), Rest"
 
-  # Numeric codes (OpenBCI / Emotiv)
-  "1":                "rest_open"
-  "2":                "rest_closed"
-  "3":                "cognitive_low"
-  "4":                "cognitive_high"
-  "99":               "rest"
-  "0":                "rest"
+  "rest":
+    trial_type: "rest"
+    hed: "Rest"
 
-# ── Hardware Overrides ────────────────────────────────────
-# Override default hardware metadata if needed
+  # ── Cognitive workload ─────────────────────────────────────────────────────
+  "workload_low":
+    trial_type: "cognitive_low"
+    hed: "Cognitive-effort, Task-difficulty/Low"
+
+  "workload_high":
+    trial_type: "cognitive_high"
+    hed: "Cognitive-effort, Task-difficulty/High"
+
+  "fatigue":
+    trial_type: "fatigue"
+    hed: "Cognitive-effort, (Fatigue, Mental)"
+
+  "alert":
+    trial_type: "alert"
+    hed: "Cognitive-effort, Alertness/High"
+
+  # ── Emotion ────────────────────────────────────────────────────────────────
+  "valence_pos":
+    trial_type: "emotion_positive"
+    hed: "Emotional-event, Valence/Positive"
+
+  "valence_neg":
+    trial_type: "emotion_negative"
+    hed: "Emotional-event, Valence/Negative"
+
+  "arousal_high":
+    trial_type: "arousal_high"
+    hed: "Emotional-event, Arousal/High"
+
+  "arousal_low":
+    trial_type: "arousal_low"
+    hed: "Emotional-event, Arousal/Low"
+
+  # ── Numeric codes (OpenBCI / Emotiv) ───────────────────────────────────────
+  "1":
+    trial_type: "rest_open"
+    hed: "Sensory-event, (Eyes, Open), Rest"
+
+  "2":
+    trial_type: "rest_closed"
+    hed: "Sensory-event, (Eyes, Closed), Rest"
+
+  "3":
+    trial_type: "cognitive_low"
+    hed: "Cognitive-effort, Task-difficulty/Low"
+
+  "4":
+    trial_type: "cognitive_high"
+    hed: "Cognitive-effort, Task-difficulty/High"
+
+  # ── Simple fallback codes (no HED needed) ──────────────────────────────────
+  "99": "rest"
+  "0":  "rest"
+
+# ── Hardware Overrides ────────────────────────────────────────────────────────
 hardware:
   sampling_rate: null        # null = auto-detect from file
   channel_count: null        # null = auto-detect from file
   reference_scheme: null     # null = use plugin default
 
-# ── Output Settings ───────────────────────────────────────
+# ── Output Settings ───────────────────────────────────────────────────────────
 output:
   overwrite: true
-  validate_bids: true        # run BIDS validator after conversion
+  validate_bids: true
   verbose: false
