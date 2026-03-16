@@ -1,5 +1,7 @@
 # NeuroBIDS-Flow
 
+![CI](https://github.com/Satpal26/neurobids-flow/actions/workflows/ci.yml/badge.svg)
+
 **Interoperable passive BCI workflows across consumer EEG sources through BIDS-EEG-based harmonization.**
 
 Consumer EEG platforms — Muse 2, Emotiv EPOC+, OpenBCI Cyton — produce structurally incompatible output formats, making cross-device passive BCI research practically infeasible. NeuroBIDS-Flow solves this by converting heterogeneous consumer EEG recordings into a unified BIDS-EEG representation through a modular graphical framework with automated event harmonization.
