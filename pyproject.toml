@@ -1,6 +1,6 @@
 [project]
 name = "neurobids-flow"
-version = "1.0.0"
+version = "1.2.0"
 description = "A modular graphical framework for standardizing multi-source EEG recordings to BIDS-EEG"
 readme = "README.md"
 requires-python = ">=3.11"
