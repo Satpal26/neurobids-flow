@@ -94,7 +94,7 @@ class EEGConverter:
     def __init__(self, config_path: str = "configs/default_config.yaml"):
         self.config = load_config(config_path)
         self.harmonizer = EventHarmonizer(
-            self.config.get("event_mapping", {})
+            self.config.event_mapping          # ← FIXED: was self.config.get("event_mapping", {})
         )
         self._plugins = [P() for P in PLUGINS]
 
@@ -130,7 +130,7 @@ class EEGConverter:
         -------
         ConversionResult
         """
-        task = task or self.config.get("recording", {}).get("task", "passive")
+        task = task or self.config.recording.task          # ← FIXED
         logger.info(f"Converting: {filepath} → subject={subject} session={session} task={task}")
 
         # ── Step 2: Detect plugin ─────────────────────────────────────
@@ -142,7 +142,7 @@ class EEGConverter:
         raw = plugin.read_raw(filepath)
 
         # Set power line frequency from config
-        power_line_freq = self.config.get("recording", {}).get("power_line_freq", 50.0)
+        power_line_freq = self.config.recording.power_line_freq   # ← FIXED
         raw.info["line_freq"] = power_line_freq
 
         # ── Step 4: Extract events ────────────────────────────────────
@@ -156,12 +156,11 @@ class EEGConverter:
             logger.info("HED strings configured — events.json sidecar will be written")
 
         # ── Step 6: Dataset description ───────────────────────────────
-        dataset_cfg = self.config.get("dataset", {})
         description = DatasetDescription(
-            name=dataset_cfg.get("name", "NeuroBIDS-Flow Dataset"),
-            authors=dataset_cfg.get("authors", []),
-            institution=dataset_cfg.get("institution", ""),
-            ethics_approval=dataset_cfg.get("ethics_approval", ""),
+            name=self.config.dataset.name,                    # ← FIXED
+            authors=self.config.dataset.authors,              # ← FIXED
+            institution=self.config.dataset.institution,      # ← FIXED
+            ethics_approval=self.config.dataset.ethics_approval,  # ← FIXED
         )
         write_dataset_description(
             bids_root=bids_root,
@@ -186,7 +185,7 @@ class EEGConverter:
             bids_path=bids_path,
             allow_preload=True,
             format=bids_format,
-            overwrite=self.config.get("output", {}).get("overwrite", True),
+            overwrite=self.config.output.overwrite,           # ← FIXED
         )
         logger.info(f"BIDS output written: {bids_path.fpath}")
 
@@ -207,7 +206,7 @@ class EEGConverter:
 
         # ── Step 10: Validate ─────────────────────────────────────────
         validation_passed = None
-        if self.config.get("output", {}).get("validate_bids", True):
+        if self.config.output.validate_bids:                  # ← FIXED
             validation_passed = self._validate(bids_root)
 
         return ConversionResult(

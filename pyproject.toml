@@ -11,12 +11,19 @@ dependencies = [
     "pandas>=3.0.1",
     "pyxdf>=1.17.3",
     "pyyaml>=6.0.3",
+    "hedtools>=0.5.0",
+    "moabb>=1.1.0",
+    "filelock>=3.12.0",
 ]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
 ]
+
 [tool.setuptools.package-dir]
 "" = "src"
+
 [project.scripts]
 neurobids-flow = "neurobids_flow.cli:cli"
+eeg2bids-unify = "neurobids_flow.cli:cli"
