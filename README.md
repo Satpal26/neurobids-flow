@@ -4,7 +4,7 @@
 
 **Interoperable passive BCI workflows across consumer EEG sources through BIDS-EEG-based harmonization.**
 
-Consumer EEG platforms — Muse 2, Emotiv EPOC+, OpenBCI Cyton — produce structurally incompatible output formats, making cross-device passive BCI research practically infeasible. NeuroBIDS-Flow solves this by converting heterogeneous consumer EEG recordings into a unified BIDS-EEG representation through a modular graphical framework with automated event harmonization.
+Consumer EEG platforms — Muse 2, Emotiv EPOC+, OpenBCI Cyton — produce structurally incompatible output formats, making cross-device passive BCI research practically infeasible. NeuroBIDS-Flow solves this by converting heterogeneous consumer EEG recordings into a unified BIDS-EEG representation through a modular graphical framework with automated event harmonization — and bridges that output directly to ML/DL frameworks via a MOABB-compatible dataset wrapper.
 
 ---
 
@@ -54,10 +54,23 @@ ls bids_output/sub-01/ses-01/eeg/
 ### 5 — Run tests
 
 ```bash
-uv run pytest tests/ -v
+uv run python -m pytest tests/ -v
 ```
 
-### 6 — Launch GUI (optional)
+### 6 — Use with ML frameworks (MOABB wrapper)
+
+```python
+from neurobids_flow.moabb_wrapper import NBIDSFDataset
+
+# Load your BIDS dataset
+dataset = NBIDSFDataset(bids_root="./bids_output", task="workload")
+
+# Plug into any MOABB paradigm → get ML-ready arrays instantly
+X, y, metadata = paradigm.get_data(dataset=dataset, subjects=[1, 2])
+print(X.shape)   # (n_trials, n_channels, n_times)
+```
+
+### 7 — Launch GUI (optional)
 
 ```bash
 python neurobids_gui.py
@@ -106,9 +119,15 @@ graph TB
     subgraph OUTPUT["BIDS-EEG Output"]
         D1["sub-XX/eeg/*_eeg.*"]
         D2["sub-XX/eeg/*_events.tsv"]
-        D3["sub-XX/eeg/*_eeg.json"]
+        D3["sub-XX/eeg/*_events.json (HED)"]
         D4["sub-XX/eeg/*_channels.tsv"]
         D5["dataset_description.json"]
+    end
+    subgraph ML["ML / DL Bridge"]
+        E1["NBIDSFDataset\nMOABB wrapper"]
+        E2["PyTorch / Braindecode"]
+        E3["TensorFlow / Keras"]
+        E4["Scikit-learn"]
     end
     G1 --> C1
     A3 --> B3
@@ -122,6 +141,8 @@ graph TB
     C1 --> D3
     C1 --> D4
     C1 --> D5
+    D1 & D2 & D3 --> E1
+    E1 --> E2 & E3 & E4
 ```
 
 ---
@@ -217,7 +238,49 @@ NeuroBIDS-Flow automatically injects [Hierarchical Event Descriptors (HED)](http
 
 This makes NeuroBIDS-Flow output fully FAIR-compliant — datasets are ready for cross-device mega-analyses and generalized passive BCI model training without any additional annotation steps.
 
+---
 
+## MOABB Dataset Wrapper
+
+NeuroBIDS-Flow includes a built-in MOABB-compatible dataset wrapper (`NBIDSFDataset`) that bridges BIDS+HED output directly to ML/DL frameworks — without duplicating or reformatting any data.
+
+```python
+from neurobids_flow.moabb_wrapper import NBIDSFDataset
+
+# Initialise — auto-detects subjects and sessions from BIDS root
+dataset = NBIDSFDataset(bids_root="./bids_output", task="workload")
+
+# Use with any MOABB paradigm
+X, y, metadata = paradigm.get_data(dataset=dataset, subjects=[1, 2])
+print(X.shape)   # (n_trials, n_channels, n_times)
+
+# Binary cognitive workload classification
+dataset = NBIDSFDataset(
+    bids_root="./bids_output",
+    events={"cognitive_low": 0, "cognitive_high": 1},
+    interval=[0.0, 4.0],
+)
+```
+
+**Compatible frameworks:**
+
+| Framework | Usage |
+|---|---|
+| MOABB | Benchmark against EEGNet, ShallowFBCSP, Riemannian classifiers |
+| Braindecode (PyTorch) | `MOABBDataset(dataset_name="NBIDSF", subject_ids=[1])` |
+| TorchEEG | Pass MNE Epochs from `paradigm.get_data()` to `MNEEpochsDataset` |
+| TensorFlow / Keras | Inject NumPy arrays `X, y` directly into `tf.data.Dataset` |
+| Scikit-learn | SVM, LDA, Riemannian geometry classifiers |
+
+**Supported passive BCI events:**
+
+| Category | trial_type values |
+|---|---|
+| Resting state | `rest_open`, `rest_closed`, `rest` |
+| Cognitive workload | `cognitive_low`, `cognitive_high`, `fatigue`, `alert` |
+| Emotion | `emotion_positive`, `emotion_negative`, `arousal_high`, `arousal_low` |
+
+---
 
 ## YAML Configuration
 
@@ -234,13 +297,13 @@ recording:
   power_line_freq: 50.0
 
 event_mapping:
-  "eyes_open":     "rest_open"
-  "eyes_closed":   "rest_closed"
-  "workload_low":  "cognitive_low"
-  "workload_high": "cognitive_high"
-  "1":             "rest_open"
-  "2":             "rest_closed"
-  "99":            "rest"
+  "eyes_open":
+    trial_type: "rest_open"
+    hed: "Sensory-event, (Eyes, Open), Rest"
+  "workload_high":
+    trial_type: "cognitive_high"
+    hed: "Cognitive-effort, Task-difficulty/High"
+  "99": "rest"
 
 output:
   validate_bids: true
@@ -252,10 +315,10 @@ output:
 ## Test Results
 
 ```
-19 passed in 3.92s
+59 passed in 5.13s
 ```
 
-All plugins validated. End-to-end BIDS conversion tested across consumer EEG formats — all passing MNE-BIDS validation.
+All plugins validated. End-to-end BIDS conversion tested across consumer EEG formats. MOABB wrapper tested with 30 unit tests. All passing MNE-BIDS validation.
 
 ---
 
@@ -273,18 +336,19 @@ neurobids-flow/
             emotiv.py            # Emotiv EPOC+
         core/
             converter.py         # pipeline orchestrator
-            harmonizer.py        # event normalization
+            harmonizer.py        # event normalization + HED injection
             config.py            # YAML config loader
             validator.py         # BIDS validation
         cli.py                   # command line interface
+        moabb_wrapper.py         # MOABB dataset wrapper (NBIDSFDataset)
     sample_data/
         generate_samples.py      # generates sample EEG files for all formats
         generated/               # gitignored — generated locally
     configs/
         default_config.yaml      # default configuration
     tests/
-        test_plugins.py          # 19 tests
-    neurobids_gui.py             # Dear PyGui node-based GUI
+        test_plugins.py          # 29 tests — plugins, harmonizer, HED, dataset description
+        test_moabb_wrapper.py    # 30 tests — MOABB wrapper
 ```
 
 ---
@@ -294,6 +358,8 @@ neurobids-flow/
 - Python 3.11
 - [MNE-Python 1.11](https://mne.tools)
 - [MNE-BIDS 0.18](https://mne.tools/mne-bids)
+- [MOABB 1.1](https://moabb.neurotechx.com) — BCI benchmarking framework
+- [HEDTools 0.5](https://www.hedtags.org) — Hierarchical Event Descriptors
 - [Dear PyGui](https://github.com/hoffstadt/DearPyGui) — GUI frontend
 - [uv](https://github.com/astral-sh/uv) — package manager
 
@@ -302,3 +368,4 @@ neurobids-flow/
 ## Author
 
 Satpal Singh — National Institute of Technology Raipur
+Research Intern — NTU Singapore, BCI/CBCR Lab
