@@ -4,7 +4,7 @@
 
 **Interoperable passive BCI workflows across consumer EEG sources through BIDS-EEG-based harmonization.**
 
-Consumer EEG platforms — Muse 2, Emotiv EPOC+, OpenBCI Cyton — produce structurally incompatible output formats, making cross-device passive BCI research practically infeasible. NeuroBIDS-Flow solves this by converting heterogeneous consumer EEG recordings into a unified BIDS-EEG representation through a modular graphical framework with automated event harmonization — and bridges that output directly to ML/DL frameworks via a MOABB-compatible dataset wrapper.
+Consumer EEG platforms — Muse 2, Emotiv EPOC+, OpenBCI Cyton — produce structurally incompatible output formats, making cross-device passive BCI research practically infeasible. NeuroBIDS-Flow solves this by converting heterogeneous consumer EEG recordings into a unified BIDS-EEG representation through a modular graphical framework with automated event harmonization — and bridges that output directly to ML/DL frameworks via MOABB-compatible and PyTorch Dataset wrappers.
 
 ---
 
@@ -24,7 +24,7 @@ uv pip install -e ".[dev]"
 python sample_data/generate_samples.py
 ```
 
-Creates one valid sample file per supported format in `sample_data/generated/`.
+Creates one valid sample file per supported format in `sample_data/generated/` (60s, 20 events each).
 
 ### 3 — Run a conversion
 
@@ -45,29 +45,32 @@ neurobids-flow convert \
   --bids-root ./bids_output --subject 03 --session 01 --task workload
 ```
 
-### 4 — Check output
-
-```bash
-ls bids_output/sub-01/ses-01/eeg/
-```
-
-### 5 — Run tests
+### 4 — Run tests
 
 ```bash
 uv run python -m pytest tests/ -v
 ```
 
-### 6 — Use with ML frameworks (MOABB wrapper)
+### 5 — Run full pipeline demo (end-to-end)
+
+```bash
+python src/neurobids_flow/pipeline_demo.py
+```
+
+Runs all 6 steps: Raw EEG → BIDS+HED → MOABB → CSP+LDA + EEGNet → cross-device results (~17s).
+
+### 6 — Use with ML frameworks
 
 ```python
-from neurobids_flow.moabb_wrapper import NBIDSFDataset
+from neurobids_flow import NBIDSFDataset, NeuroBIDSFlowTorchDataset
 
-# Load your BIDS dataset
+# MOABB wrapper
 dataset = NBIDSFDataset(bids_root="./bids_output", task="workload")
-
-# Plug into any MOABB paradigm → get ML-ready arrays instantly
 X, y, metadata = paradigm.get_data(dataset=dataset, subjects=[1, 2])
-print(X.shape)   # (n_trials, n_channels, n_times)
+
+# PyTorch wrapper
+torch_ds = NeuroBIDSFlowTorchDataset(bids_root="./bids_output", task="workload")
+loader = DataLoader(torch_ds, batch_size=32, shuffle=True)
 ```
 
 ### 7 — Launch GUI (optional)
@@ -125,9 +128,9 @@ graph TB
     end
     subgraph ML["ML / DL Bridge"]
         E1["NBIDSFDataset\nMOABB wrapper"]
-        E2["PyTorch / Braindecode"]
-        E3["TensorFlow / Keras"]
-        E4["Scikit-learn"]
+        E2["NeuroBIDSFlowTorchDataset\nPyTorch wrapper"]
+        E3["CSP+LDA baseline"]
+        E4["EEGNet (Braindecode)"]
     end
     G1 --> C1
     A3 --> B3
@@ -142,7 +145,9 @@ graph TB
     C1 --> D4
     C1 --> D5
     D1 & D2 & D3 --> E1
-    E1 --> E2 & E3 & E4
+    E1 --> E2
+    E1 --> E3
+    E1 --> E4
 ```
 
 ---
@@ -167,34 +172,6 @@ flowchart TD
 
 ---
 
-## BIDS Conversion Pipeline
-
-```mermaid
-sequenceDiagram
-    participant U as User / CLI / GUI
-    participant C as EEGConverter
-    participant P as Hardware Plugin
-    participant EH as EventHarmonizer
-    participant M as MNE-BIDS
-
-    U->>C: convert(filepath, bids_root, subject, session, task)
-    C->>P: detect(filepath)
-    P-->>C: True / False
-    C->>P: read_raw(filepath)
-    P-->>C: mne.io.BaseRaw object
-    C->>P: extract_events(filepath, raw)
-    P-->>C: List[EventInfo]
-    C->>EH: harmonize(events)
-    EH-->>C: Unified BIDS events
-    C->>P: get_metadata(filepath)
-    P-->>C: HardwareMetadata
-    C->>M: write_raw_bids(raw, bids_path, allow_preload=True)
-    M-->>C: BIDS folder written
-    C-->>U: BIDSPath + validation report
-```
-
----
-
 ## EventHarmonizer — Supported Input Formats
 
 Normalizes all consumer EEG marker types into a unified BIDS-compliant `events.tsv`:
@@ -215,15 +192,6 @@ Output columns: `onset | duration | trial_type | original_value | trigger_source
 
 NeuroBIDS-Flow automatically injects [Hierarchical Event Descriptors (HED)](https://www.hedtags.org) into the BIDS-EEG output when HED strings are defined in your config.
 
-**What gets generated automatically:**
-
-| File | Content |
-|---|---|
-| `*_events.tsv` | `onset \| duration \| trial_type \| value \| trigger_source` |
-| `*_events.json` | HED string dictionary mapped to each `trial_type` |
-| `dataset_description.json` | `"HEDVersion": "8.2.0"` injected automatically |
-
-**Example `events.json` sidecar output:**
 ```json
 {
     "trial_type": {
@@ -236,55 +204,37 @@ NeuroBIDS-Flow automatically injects [Hierarchical Event Descriptors (HED)](http
 }
 ```
 
-This makes NeuroBIDS-Flow output fully FAIR-compliant — datasets are ready for cross-device mega-analyses and generalized passive BCI model training without any additional annotation steps.
-
 ---
 
-## MOABB Dataset Wrapper
+## ML Pipeline
 
-NeuroBIDS-Flow includes a built-in MOABB-compatible dataset wrapper (`NBIDSFDataset`) that bridges BIDS+HED output directly to ML/DL frameworks — without duplicating or reformatting any data.
+NeuroBIDS-Flow provides a complete passive BCI classification pipeline on top of BIDS output:
 
 ```python
-from neurobids_flow.moabb_wrapper import NBIDSFDataset
+# CSP + LDA baseline
+from neurobids_flow.sklearn_pipeline import run_pipeline
+results = run_pipeline(bids_root="./bids_output", task="workload")
+# Mean accuracy: 0.526 ± 0.114 (cross-device, synthetic data)
 
-# Initialise — auto-detects subjects and sessions from BIDS root
-dataset = NBIDSFDataset(bids_root="./bids_output", task="workload")
+# EEGNet deep learning
+from neurobids_flow.braindecode_pipeline import run_pipeline
+results = run_pipeline(bids_root="./bids_output", n_epochs=20)
+# Best val accuracy: 0.545 (above chance)
 
-# Use with any MOABB paradigm
-X, y, metadata = paradigm.get_data(dataset=dataset, subjects=[1, 2])
-print(X.shape)   # (n_trials, n_channels, n_times)
+# Cross-device evaluation
+from neurobids_flow.cross_device_eval import run_evaluation, print_summary_table
+rows = run_evaluation(bids_root="./bids_output")
+print_summary_table(rows)
 
-# Binary cognitive workload classification
-dataset = NBIDSFDataset(
-    bids_root="./bids_output",
-    events={"cognitive_low": 0, "cognitive_high": 1},
-    interval=[0.0, 4.0],
-)
+# Reproducible splits
+from neurobids_flow.splits import generate_splits
+splits = generate_splits(bids_root="./bids_output", seed=42)
+# {'train': ['03', '02'], 'val': ['04'], 'test': ['01']}
 ```
-
-**Compatible frameworks:**
-
-| Framework | Usage |
-|---|---|
-| MOABB | Benchmark against EEGNet, ShallowFBCSP, Riemannian classifiers |
-| Braindecode (PyTorch) | `MOABBDataset(dataset_name="NBIDSF", subject_ids=[1])` |
-| TorchEEG | Pass MNE Epochs from `paradigm.get_data()` to `MNEEpochsDataset` |
-| TensorFlow / Keras | Inject NumPy arrays `X, y` directly into `tf.data.Dataset` |
-| Scikit-learn | SVM, LDA, Riemannian geometry classifiers |
-
-**Supported passive BCI events:**
-
-| Category | trial_type values |
-|---|---|
-| Resting state | `rest_open`, `rest_closed`, `rest` |
-| Cognitive workload | `cognitive_low`, `cognitive_high`, `fatigue`, `alert` |
-| Emotion | `emotion_positive`, `emotion_negative`, `arousal_high`, `arousal_low` |
 
 ---
 
 ## YAML Configuration
-
-No source-code changes needed between datasets. Edit `configs/default_config.yaml`:
 
 ```yaml
 dataset:
@@ -303,7 +253,6 @@ event_mapping:
   "workload_high":
     trial_type: "cognitive_high"
     hed: "Cognitive-effort, Task-difficulty/High"
-  "99": "rest"
 
 output:
   validate_bids: true
@@ -315,10 +264,22 @@ output:
 ## Test Results
 
 ```
-59 passed in 5.13s
+120 passed in 15.4s
 ```
 
-All plugins validated. End-to-end BIDS conversion tested across consumer EEG formats. MOABB wrapper tested with 30 unit tests. All passing MNE-BIDS validation.
+| Test Module | Tests |
+|---|---|
+| Plugin detection (5 plugins) | 11 |
+| EventHarmonizer + HED | 13 |
+| Dataset description | 5 |
+| MOABB wrapper | 30 |
+| PyTorch Dataset wrapper | 29 |
+| CSP+LDA pipeline | 8 |
+| EEGNet pipeline | 7 |
+| Cross-device evaluation | 7 |
+| Subject splits | 8 |
+| Pipeline demo | 2 |
+| **Total** | **120** |
 
 ---
 
@@ -328,27 +289,36 @@ All plugins validated. End-to-end BIDS conversion tested across consumer EEG for
 neurobids-flow/
     src/neurobids_flow/
         plugins/
-            base.py              # abstract plugin interface
-            brainproducts.py     # BrainProducts ActiChamp Plus
-            neuroscan.py         # Neuroscan NuAmps
-            openbci.py           # OpenBCI Cyton
-            muse.py              # InteraXon Muse 2
-            emotiv.py            # Emotiv EPOC+
+            base.py                  # abstract plugin interface
+            brainproducts.py         # BrainProducts ActiChamp Plus
+            neuroscan.py             # Neuroscan NuAmps
+            openbci.py               # OpenBCI Cyton
+            muse.py                  # InteraXon Muse 2
+            emotiv.py                # Emotiv EPOC+
         core/
-            converter.py         # pipeline orchestrator
-            harmonizer.py        # event normalization + HED injection
-            config.py            # YAML config loader
-            validator.py         # BIDS validation
-        cli.py                   # command line interface
-        moabb_wrapper.py         # MOABB dataset wrapper (NBIDSFDataset)
+            converter.py             # pipeline orchestrator
+            harmonizer.py            # event normalization + HED injection
+            config.py                # YAML config loader
+            validator.py             # BIDS validation
+            dataset_description.py   # dataset_description.json generator
+        moabb_wrapper.py             # MOABB dataset wrapper (NBIDSFDataset)
+        torch_dataset.py             # PyTorch Dataset wrapper
+        sklearn_pipeline.py          # CSP+LDA baseline classifier
+        braindecode_pipeline.py      # EEGNet deep learning pipeline
+        cross_device_eval.py         # cross-device evaluation script
+        splits.py                    # reproducible train/val/test splits
+        pipeline_demo.py             # full end-to-end demo
+        cli.py                       # command line interface
     sample_data/
-        generate_samples.py      # generates sample EEG files for all formats
-        generated/               # gitignored — generated locally
+        generate_samples.py          # generates 60s sample EEG files (20 events)
     configs/
-        default_config.yaml      # default configuration
+        default_config.yaml          # default configuration
+        splits.json                  # reproducible subject splits (seed=42)
     tests/
-        test_plugins.py          # 29 tests — plugins, harmonizer, HED, dataset description
-        test_moabb_wrapper.py    # 30 tests — MOABB wrapper
+        test_plugins.py              # 29 tests
+        test_moabb_wrapper.py        # 30 tests
+        test_torch_dataset.py        # 29 tests
+        test_ml_pipeline.py          # 32 tests
 ```
 
 ---
@@ -358,10 +328,12 @@ neurobids-flow/
 - Python 3.11
 - [MNE-Python 1.11](https://mne.tools)
 - [MNE-BIDS 0.18](https://mne.tools/mne-bids)
-- [MOABB 1.1](https://moabb.neurotechx.com) — BCI benchmarking framework
-- [HEDTools 0.5](https://www.hedtags.org) — Hierarchical Event Descriptors
-- [Dear PyGui](https://github.com/hoffstadt/DearPyGui) — GUI frontend
-- [uv](https://github.com/astral-sh/uv) — package manager
+- [MOABB 1.1](https://moabb.neurotechx.com)
+- [PyTorch 2.10](https://pytorch.org)
+- [Braindecode 1.3](https://braindecode.org)
+- [HEDTools 0.5](https://www.hedtags.org)
+- [Dear PyGui](https://github.com/hoffstadt/DearPyGui)
+- [uv](https://github.com/astral-sh/uv)
 
 ---
 
