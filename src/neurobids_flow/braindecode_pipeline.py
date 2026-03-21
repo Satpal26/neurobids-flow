@@ -2,7 +2,6 @@
 NeuroBIDS-Flow — Braindecode EEGNet Pipeline
 =============================================
 EEGNet deep learning classifier on BIDS-EEG data.
-Builds on top of NeuroBIDSFlowTorchDataset.
 
 Usage:
     python src/neurobids_flow/braindecode_pipeline.py --bids-root ./bids_output
@@ -32,6 +31,8 @@ BANNER = """
 """
 
 
+# ── Data Loading ──────────────────────────────────────────────────────────────
+
 def load_data(bids_root: str, task: str = "workload",
               tmin: float = 0.0, tmax: float = 3.0):
     from neurobids_flow.sklearn_pipeline import load_epochs_from_bids
@@ -39,19 +40,26 @@ def load_data(bids_root: str, task: str = "workload",
                                  tmin=tmin, tmax=tmax)
 
 
+# ── EEGNet Model ──────────────────────────────────────────────────────────────
+
 def build_eegnet(n_channels: int, n_times: int, n_classes: int):
-    # Try braindecode 1.x API
+    """
+    Build EEGNet model using Braindecode.
+    Falls back to ShallowConvNet if unavailable.
+    """
+    # Try braindecode 1.x API (EEGNet renamed from EEGNetv4)
     try:
-        from braindecode.models import EEGNetv4
-        model = EEGNetv4(
+        from braindecode.models import EEGNet
+        model = EEGNet(
             n_chans=n_channels,
             n_outputs=n_classes,
             n_times=n_times,
             final_conv_length=1,
+            final_layer_linear=True,
         )
-        log.info("Model      : EEGNetv4 (Braindecode 1.x)")
+        log.info("Model      : EEGNet (Braindecode 1.x)")
         return model
-    except TypeError:
+    except (TypeError, ImportError):
         pass
 
     # Try braindecode 0.x API
@@ -68,11 +76,12 @@ def build_eegnet(n_channels: int, n_times: int, n_classes: int):
     except Exception:
         pass
 
-    log.warning("EEGNetv4 unavailable — using ShallowConvNet fallback")
+    log.warning("EEGNet unavailable — using ShallowConvNet fallback")
     return _build_fallback(n_channels, n_times, n_classes)
 
 
 def _build_fallback(n_channels: int, n_times: int, n_classes: int):
+    """Simple fallback ShallowConvNet."""
     class ShallowConvNet(nn.Module):
         def __init__(self):
             super().__init__()
@@ -98,6 +107,16 @@ def _build_fallback(n_channels: int, n_times: int, n_classes: int):
     return ShallowConvNet()
 
 
+def _forward(model, X_batch):
+    """Forward pass — handles both (batch, classes) and (batch, classes, times) outputs."""
+    out = model(X_batch)
+    if out.dim() == 3:
+        out = out.mean(dim=-1)
+    return out
+
+
+# ── PyTorch Dataset ───────────────────────────────────────────────────────────
+
 class EEGArrayDataset(torch.utils.data.Dataset):
     def __init__(self, X: np.ndarray, y: np.ndarray):
         self.X = torch.tensor(X, dtype=torch.float32)
@@ -110,13 +129,7 @@ class EEGArrayDataset(torch.utils.data.Dataset):
         return self.X[idx], self.y[idx]
 
 
-def _forward(model, X_batch):
-    """Forward pass — handles both (batch, classes) and (batch, classes, times) outputs."""
-    out = model(X_batch)
-    if out.dim() == 3:
-        out = out.mean(dim=-1)  # average over time dimension
-    return out
-
+# ── Training ──────────────────────────────────────────────────────────────────
 
 def train_epoch(model, loader, optimizer, criterion, device):
     model.train()
@@ -147,6 +160,8 @@ def eval_epoch(model, loader, criterion, device):
             total += len(y_batch)
     return total_loss / max(len(loader), 1), correct / max(total, 1)
 
+
+# ── Main Pipeline ─────────────────────────────────────────────────────────────
 
 def run_pipeline(bids_root: str, task: str = "workload",
                  tmin: float = 0.0, tmax: float = 3.0,
