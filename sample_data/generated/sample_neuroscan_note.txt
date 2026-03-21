@@ -1,7 +1,2 @@
 NOTE: Genuine Neuroscan .cnt requires proprietary hardware.
-For end-to-end testing of the NeuroscanPlugin, provide a real .cnt file
-from a Neuroscan recording system, or use MNE's test dataset:
-
-  python -c "import mne; mne.datasets.misc.data_path()"
-
 The plugin is validated via synthetic MNE RawArray in the test suite.
