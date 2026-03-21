@@ -47,6 +47,20 @@ All notable changes to NeuroBIDS-Flow are documented here.
 - Tests expanded: 29 → 88 (30 MOABB tests + 29 PyTorch tests)
 - Version bumped to 1.2.0
 
+## [1.3.0] — 2026-03-21
+
+### ML/AI Pipeline & Cleanup
+
+- **`sklearn_pipeline.py`** — CSP+LDA baseline classifier with cross-device support, `_clean_description()` for annotation normalization
+- **`braindecode_pipeline.py`** — EEGNet deep learning pipeline via Braindecode 1.x, `_forward()` helper for output shape handling, `final_layer_linear=True` fix
+- **`cross_device_eval.py`** — per-device CSP+LDA + EEGNet evaluation with summary table
+- **`splits.py`** — reproducible train/val/test subject splits saved as JSON
+- **`pipeline_demo.py`** — full end-to-end demo (6 steps, ~17s runtime)
+- **`generate_samples.py`** — updated to 60s duration, 20 events per file for ML evaluation
+- Fixed `EEGNetv4` deprecation — migrated to `EEGNet` with `final_layer_linear=True`
+- Removed `demo_bids_output/` and `bids_output/` from repository
+- `braindecode>=1.3.0` added to package dependencies
+- Tests expanded: 88 → 120 (32 new ML pipeline tests)
 
 ## [1.0.0] — 2026-03-13
 
