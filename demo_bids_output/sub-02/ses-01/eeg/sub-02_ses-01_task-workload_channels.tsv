@@ -1,9 +1,0 @@
-﻿name	type	units	low_cutoff	high_cutoff	description	sampling_frequency	status	status_description
-EEG1	EEG	µV	0.0	125.0	ElectroEncephaloGram	250.0	good	n/a
-EEG2	EEG	µV	0.0	125.0	ElectroEncephaloGram	250.0	good	n/a
-EEG3	EEG	µV	0.0	125.0	ElectroEncephaloGram	250.0	good	n/a
-EEG4	EEG	µV	0.0	125.0	ElectroEncephaloGram	250.0	good	n/a
-EEG5	EEG	µV	0.0	125.0	ElectroEncephaloGram	250.0	good	n/a
-EEG6	EEG	µV	0.0	125.0	ElectroEncephaloGram	250.0	good	n/a
-EEG7	EEG	µV	0.0	125.0	ElectroEncephaloGram	250.0	good	n/a
-EEG8	EEG	µV	0.0	125.0	ElectroEncephaloGram	250.0	good	n/a
