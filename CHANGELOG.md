@@ -1,3 +1,24 @@
+# Changelog
+
+All notable changes to NeuroBIDS-Flow are documented here.
+
+---
+
+## [1.2.0] — 2026-03-20
+
+### MOABB Dataset Wrapper & ML Framework Bridge
+
+- **`moabb_wrapper.py`** — new `NBIDSFDataset` class wrapping NeuroBIDS-Flow BIDS output as a fully MOABB-compatible dataset
+- Auto-detects subjects (`sub-XX`) and sessions (`ses-XX`) directly from BIDS root folder structure
+- Filters `bids_path.match()` results to EEG-only files (`.vhdr`, `.edf`, `.bdf`, `.set`, `.fif`) — skips `.tsv` / `.json` sidecars
+- `NEUROBIDS_EVENTS` dictionary maps all passive BCI `trial_type` values (resting, workload, emotion) to integer labels for ML frameworks
+- Compatible with **PyTorch** (Braindecode / TorchEEG), **TensorFlow** (Keras), and **Scikit-learn** — no data duplication or reformatting
+- `read_raw_bids` automatically attaches `events.tsv` annotations and HED strings from `events.json` to MNE Raw objects
+- **Bug fix** — `EEGConverter` updated to use `AppConfig` attribute access (`.recording.task`, `.dataset.name`, etc.) instead of `.get()` dict calls
+- `moabb>=1.1.0` and `filelock>=3.12.0` added to package dependencies
+- Tests expanded: 29 → **59** (30 new MOABB wrapper tests across 5 test classes)
+
+---
 
 ## [1.1.0] — 2026-03-16
 
@@ -13,11 +34,19 @@
 - Tests expanded: 19 → 29 (7 new HED tests + 3 dataset description tests)
 - Output is now fully FAIR-compliant BIDS-EEG with semantic HED annotation
 
-# Changelog
-
-All notable changes to NeuroBIDS-Flow are documented here.
-
 ---
+## [1.2.0] — 2026-03-21
+
+### ML/DL Bridge Layer
+
+- **`moabb_wrapper.py`** — `NBIDSFDataset` MOABB-compatible wrapper bridging BIDS+HED output to PyTorch/TF/sklearn pipelines
+- **`torch_dataset.py`** — `NeuroBIDSFlowTorchDataset` PyTorch Dataset wrapper with DataLoader support, shape `(epochs, channels, times)`
+- **`__init__.py`** — top-level exports added for `NBIDSFDataset`, `NeuroBIDSFlowTorchDataset`, `EEGConverter`, `EventHarmonizer`, `load_config`
+- `moabb>=1.1.0`, `filelock>=3.12.0`, `torch>=2.0.0` added to dependencies
+- Fixed `converter.py` — `AppConfig.get()` replaced with proper attribute access
+- Tests expanded: 29 → 88 (30 MOABB tests + 29 PyTorch tests)
+- Version bumped to 1.2.0
+
 
 ## [1.0.0] — 2026-03-13
 
@@ -68,10 +97,10 @@ First stable release of NeuroBIDS-Flow — a modular graphical framework for sta
 
 ## Roadmap
 
-### [1.1.0] — Planned
-- Additional hardware plugins (g.tec, Biosemi)
-- Multi-file batch conversion via CLI
-- GUI node state save/load
+### [1.3.0] — Planned
+- PyTorch Dataset class — direct `torch.utils.data.Dataset` wrapper for TorchEEG
+- Pre-defined train/val/test splits JSON for reproducible ML benchmarking
+- MOABB PR submission — contribute `NBIDSFDataset` to official MOABB repository
 
 ### [2.0.0] — Planned
 - SSVEP paradigm-specific processing pipeline
