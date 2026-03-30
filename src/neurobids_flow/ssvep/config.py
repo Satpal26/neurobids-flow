@@ -23,20 +23,21 @@ from pathlib import Path
 @dataclass
 class FilterConfig:
     """Bandpass / notch filter settings."""
-    lowcut: float = 1.0          # Hz — highpass cutoff
-    highcut: float = 40.0        # Hz — lowpass cutoff
-    notch: float = 50.0          # Hz — powerline (use 60.0 for US)
-    notch_width: float = 1.0     # Hz bandwidth around notch
-    order: int = 4               # Butterworth order
+    lowcut: float = 1.0
+    highcut: float = 40.0
+    notch: float = 50.0
+    notch_width: float = 1.0
+    order: int = 4
 
 
 @dataclass
 class EpochConfig:
     """Epoching settings."""
-    tmin: float = 0.0            # s — epoch start relative to event
-    tmax: float = 2.0            # s — epoch end
-    baseline: tuple[float | None, float | None] = (None, 0.0)
-    reject_peak_to_peak: float | None = None   # µV — epoch rejection threshold
+    tmin: float = 0.0
+    tmax: float = 2.0
+    baseline_start: float | None = None
+    baseline_end: float = 0.0
+    reject_peak_to_peak: float | None = None
 
 
 @dataclass
@@ -52,8 +53,8 @@ class FBCCAConfig:
     n_harmonics: int = 3
     n_components: int = 1
     filter_order: int = 4
-    a: float = 1.25              # sub-band weight exponent
-    b: float = 0.25              # sub-band weight offset
+    a: float = 1.25
+    b: float = 0.25
     subbands: list[list[float]] = field(default_factory=lambda: [
         [6, 90], [14, 90], [22, 90], [30, 90], [38, 90]
     ])
@@ -70,8 +71,8 @@ class TRCAConfig:
 class EvalConfig:
     """Evaluation settings."""
     n_splits: int = 5
-    epoch_duration: float = 2.0  # s — for ITR calculation
-    gap_duration: float = 0.5    # s — inter-trial gap
+    epoch_duration: float = 2.0
+    gap_duration: float = 0.5
 
 
 @dataclass
@@ -106,7 +107,17 @@ class SSVEPConfig:
     eval: EvalConfig = field(default_factory=EvalConfig)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        """Convert to plain dict safe for YAML serialization (no tuples)."""
+        d = asdict(self)
+        def _fix(obj):
+            if isinstance(obj, tuple):
+                return list(obj)
+            if isinstance(obj, dict):
+                return {k: _fix(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_fix(v) for v in obj]
+            return obj
+        return _fix(d)
 
     def save(self, path: str | Path) -> None:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -123,20 +134,37 @@ class SSVEPConfig:
         cfg.methods = d.get("methods", cfg.methods)
 
         if "filters" in d:
-            cfg.filters = FilterConfig(**d["filters"])
+            cfg.filters = FilterConfig(**{
+                k: v for k, v in d["filters"].items()
+                if k in FilterConfig.__dataclass_fields__
+            })
         if "epochs" in d:
             ep = d["epochs"]
-            baseline = ep.get("baseline", [None, 0.0])
-            ep["baseline"] = tuple(baseline)
-            cfg.epochs = EpochConfig(**ep)
+            ep.pop("baseline", None)  # remove old tuple field if present
+            cfg.epochs = EpochConfig(**{
+                k: v for k, v in ep.items()
+                if k in EpochConfig.__dataclass_fields__
+            })
         if "cca" in d:
-            cfg.cca = CCAConfig(**d["cca"])
+            cfg.cca = CCAConfig(**{
+                k: v for k, v in d["cca"].items()
+                if k in CCAConfig.__dataclass_fields__
+            })
         if "fbcca" in d:
-            cfg.fbcca = FBCCAConfig(**d["fbcca"])
+            cfg.fbcca = FBCCAConfig(**{
+                k: v for k, v in d["fbcca"].items()
+                if k in FBCCAConfig.__dataclass_fields__
+            })
         if "trca" in d:
-            cfg.trca = TRCAConfig(**d["trca"])
+            cfg.trca = TRCAConfig(**{
+                k: v for k, v in d["trca"].items()
+                if k in TRCAConfig.__dataclass_fields__
+            })
         if "eval" in d:
-            cfg.eval = EvalConfig(**d["eval"])
+            cfg.eval = EvalConfig(**{
+                k: v for k, v in d["eval"].items()
+                if k in EvalConfig.__dataclass_fields__
+            })
         return cfg
 
 
@@ -147,7 +175,6 @@ def load_ssvep_config(path: str | Path) -> SSVEPConfig:
     Parameters
     ----------
     path : str or Path
-        Path to the YAML config file.
 
     Returns
     -------
