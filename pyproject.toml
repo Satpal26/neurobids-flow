@@ -1,6 +1,6 @@
 [project]
 name = "neurobids-flow"
-version = "1.2.0"
+version = "1.4.0"
 description = "A modular graphical framework for standardizing multi-source EEG recordings to BIDS-EEG"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,6 +16,8 @@ dependencies = [
     "filelock>=3.12.0",
     "torch>=2.0.0",
     "braindecode>=1.3.0",
+    "scipy>=1.10.0",
+    "matplotlib>=3.7.0",
 ]
 
 [dependency-groups]

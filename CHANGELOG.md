@@ -116,6 +116,24 @@ First stable release of NeuroBIDS-Flow — a modular graphical framework for sta
 - Pre-defined train/val/test splits JSON for reproducible ML benchmarking
 - MOABB PR submission — contribute `NBIDSFDataset` to official MOABB repository
 
+## [1.4.0] — 2026-03-31
+
+### Target 2 — SSVEPFlow Framework (Complete)
+
+- **`ssvep/cca.py`** — Training-free CCA classifier (`CCA` class) with `stim_freqs` API, `predict()`, `predict_proba()`, `score()`, `_build_reference()`
+- **`ssvep/fbcca.py`** — Filter Bank CCA (`FBCCA`) with 5 sub-bands, weighted correlation scores, configurable sub-band exponent `a` and offset `b`
+- **`ssvep/trca.py`** — Task-Related Component Analysis (`TRCA`) with ensemble mode (eTRCA), generalised eigenvalue spatial filters, per-class templates
+- **`ssvep/evaluator.py`** — `SSVEPEvaluator` with accuracy, ITR (bits/trial + bits/min), confusion matrix, per-class precision/recall/F1, stratified k-fold CV
+- **`ssvep/config.py`** — `SSVEPConfig` YAML config dataclass (FilterConfig, EpochConfig, CCAConfig, FBCCAConfig, TRCAConfig, EvalConfig), `load_ssvep_config()`, `save_default_config()`
+- **`ssvep/pipeline.py`** — `SSVEPPipeline` end-to-end orchestrator: BIDS load → preprocess → CCA/FBCCA/TRCA → evaluate → summary table
+- **`ssvep/visualizer.py`** — `SSVEPVisualizer` with accuracy+ITR bar chart, confusion matrix heatmap, PSD plot with SSVEP peaks, CV fold box plot
+- **`ssvep/benchmark.py`** — `SSVEPBenchmark` cross-device/cross-subject benchmark with JSON result export
+- **`ssvep/preprocessor.py`** — `SSVEPPreprocessor` BIDS-EEG loader with bandpass/notch filter, re-reference, epoching, baseline correction
+- **`ssvep/__init__.py`** — Full module exports for all SSVEPFlow classes
+- `matplotlib>=3.0.0` added as optional dependency for visualizer
+- Tests expanded: 120 → 186 (66 new SSVEP tests covering all modules)
+- Version bumped to 1.4.0
+
 ### [2.0.0] — Planned
 - SSVEP paradigm-specific processing pipeline
 - Motor imagery and passive BCI support

@@ -1,343 +1,237 @@
-# NeuroBIDS-Flow
-
-![CI](https://github.com/Satpal26/neurobids-flow/actions/workflows/ci.yml/badge.svg)
+# NeuroBIDS-Flow ![CI](https://github.com/Satpal26/neurobids-flow/actions/workflows/ci.yml/badge.svg)
 
 **Interoperable passive BCI workflows across consumer EEG sources through BIDS-EEG-based harmonization.**
 
-Consumer EEG platforms — Muse 2, Emotiv EPOC+, OpenBCI Cyton — produce structurally incompatible output formats, making cross-device passive BCI research practically infeasible. NeuroBIDS-Flow solves this by converting heterogeneous consumer EEG recordings into a unified BIDS-EEG representation through a modular graphical framework with automated event harmonization — and bridges that output directly to ML/DL frameworks via MOABB-compatible and PyTorch Dataset wrappers.
+Consumer EEG platforms — Muse 2, Emotiv EPOC+, OpenBCI Cyton — produce structurally incompatible files that block cross-device research. NeuroBIDS-Flow solves this by converting raw EEG from 5 hardware formats into BIDS-EEG + HED-annotated datasets, then running a full SSVEP BCI pipeline on top — all from a single CLI command.
 
 ---
 
-## Quickstart
+## 🗺️ Project Roadmap
 
-### 1 — Install
+| Target | Module | Status |
+|--------|--------|--------|
+| **Target 1** | NeuroBIDS-Flow — BIDS-EEG Conversion + ML Bridge | ✅ Complete |
+| **Target 2** | SSVEPFlow — End-to-end SSVEP BCI Framework | ✅ Complete |
+| **Target 3** | Novel SSVEP Method on lab dataset | 🔄 Planned |
+
+---
+
+## ✨ Features
+
+### Target 1 — NeuroBIDS-Flow (BIDS Conversion)
+- **5 hardware plugins** — BrainProducts, Neuroscan, OpenBCI, Muse 2, Emotiv EPOC+
+- **BIDS-EEG + HED** semantic annotation (v1.1.0)
+- **EventHarmonizer** ★ novel cross-device event normalization
+- **MOABB wrapper** (`NBIDSFDataset`) — bridges to PyTorch / TF / sklearn
+- **PyTorch Dataset** (`NeuroBIDSFlowTorchDataset`) — DataLoader-ready epochs
+- **ML pipeline** — CSP+LDA (0.526) + EEGNet (0.545) cross-device evaluation
+- **Full pipeline demo** — Raw EEG → BIDS+HED → ML results in 17.4s
+- **YAML config** + CLI + BIDS Validator
+
+### Target 2 — SSVEPFlow (SSVEP BCI Framework)
+- **CCA** — training-free canonical correlation analysis baseline
+- **FBCCA** — filter bank CCA with 5 sub-bands and weighted scores
+- **TRCA / eTRCA** — task-related component analysis with ensemble mode
+- **Evaluator** — accuracy, ITR (bits/trial + bits/min), confusion matrix, CV
+- **Visualizer** — accuracy/ITR bar charts, PSD plots, confusion matrix heatmaps
+- **Benchmark** — cross-device/cross-subject evaluation with JSON export
+- **YAML config** — fully configurable pipeline via `ssvep_config.yaml`
+- **End-to-end pipeline** — BIDS → preprocess → classify → evaluate → plot
+
+---
+
+## 📊 Test Coverage
+
+| Module | Tests |
+|--------|-------|
+| Hardware plugins (5 devices) | 29 |
+| MOABB wrapper | 30 |
+| PyTorch Dataset | 29 |
+| ML pipeline (CSP+LDA, EEGNet, cross-device) | 32 |
+| SSVEPFlow (CCA, FBCCA, TRCA, evaluator, config, visualizer, benchmark) | 66 |
+| **Total** | **186 ✅** |
+
+---
+
+## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/Satpal26/neurobids-flow.git
-cd neurobids-flow
-uv pip install -e ".[dev]"
+pip install neurobids-flow
 ```
 
-### 2 — Generate sample EEG files
+### Target 1 — Convert raw EEG to BIDS
 
 ```bash
-python sample_data/generate_samples.py
-```
-
-Creates one valid sample file per supported format in `sample_data/generated/` (60s, 20 events each).
-
-### 3 — Run a conversion
-
-```bash
-# OpenBCI Cyton
+# Single file
 neurobids-flow convert \
-  --file sample_data/generated/sample_openbci.txt \
-  --bids-root ./bids_output --subject 01 --session 01 --task workload
+  --file sample_data/generated/sample_brainproducts.vhdr \
+  --bids-root ./bids_output \
+  --subject 01 --session 01 --task workload
 
-# Muse 2 (Mind Monitor CSV)
-neurobids-flow convert \
-  --file sample_data/generated/sample_muse.csv \
-  --bids-root ./bids_output --subject 02 --session 01 --task workload
-
-# Emotiv EPOC+
-neurobids-flow convert \
-  --file sample_data/generated/sample_emotiv.edf \
-  --bids-root ./bids_output --subject 03 --session 01 --task workload
-```
-
-### 4 — Run tests
-
-```bash
-uv run python -m pytest tests/ -v
-```
-
-### 5 — Run full pipeline demo (end-to-end)
-
-```bash
+# Full pipeline demo (all 5 devices → BIDS → ML in ~17s)
 python src/neurobids_flow/pipeline_demo.py
 ```
 
-Runs all 6 steps: Raw EEG → BIDS+HED → MOABB → CSP+LDA + EEGNet → cross-device results (~17s).
-
-### 6 — Use with ML frameworks
-
-```python
-from neurobids_flow import NBIDSFDataset, NeuroBIDSFlowTorchDataset
-
-# MOABB wrapper
-dataset = NBIDSFDataset(bids_root="./bids_output", task="workload")
-X, y, metadata = paradigm.get_data(dataset=dataset, subjects=[1, 2])
-
-# PyTorch wrapper
-torch_ds = NeuroBIDSFlowTorchDataset(bids_root="./bids_output", task="workload")
-loader = DataLoader(torch_ds, batch_size=32, shuffle=True)
-```
-
-### 7 — Launch GUI (optional)
+### Target 2 — Run SSVEP pipeline
 
 ```bash
-python neurobids_gui.py
+# Run CCA + FBCCA + TRCA on BIDS output
+python src/neurobids_flow/ssvep/pipeline.py \
+  --bids-root ./bids_output \
+  --freqs 6.0 8.0 10.0 12.0
+
+# Cross-device benchmark
+python src/neurobids_flow/ssvep/benchmark.py \
+  --bids-root ./bids_output
 ```
 
----
-
-## Supported Hardware
-
-| Device | File Format | Type | Status |
-|---|---|---|---|
-| InteraXon Muse 2 (Mind Monitor) | .csv | Consumer | ✅ Done |
-| InteraXon Muse 2 (MuseLSL) | .xdf | Consumer | ✅ Done |
-| Emotiv EPOC+ | .edf | Consumer | ✅ Done |
-| OpenBCI Cyton | .txt | Consumer | ✅ Done |
-| BrainProducts ActiChamp Plus | .vhdr / .vmrk / .eeg | Research | ✅ Done |
-| Neuroscan NuAmps | .cnt | Research | ✅ Done |
-
----
-
-## System Architecture
-
-```mermaid
-graph TB
-    subgraph GUI["GUI Layer (Optional)"]
-        G1["Dear PyGui Node Editor"]
-        G2["EEG Signal Preview"]
-        G3["Execution Console"]
-    end
-    subgraph INPUT["Consumer EEG Sources"]
-        A3[".txt — OpenBCI Cyton"]
-        A4[".csv / .xdf — Muse 2"]
-        A5[".edf — Emotiv EPOC+"]
-    end
-    subgraph PLUGINS["Hardware Plugin Layer"]
-        B3["OpenBCIPlugin"]
-        B4["MusePlugin"]
-        B5["EmotivPlugin"]
-    end
-    subgraph CORE["Core Engine"]
-        C1["EEGConverter\nauto-detect + orchestrate"]
-        C2["EventHarmonizer\nnormalize all marker formats"]
-        C3["YAML Config Loader\nno-code event mapping"]
-        C4["BIDS Validator\nMNE-BIDS validation"]
-    end
-    subgraph OUTPUT["BIDS-EEG Output"]
-        D1["sub-XX/eeg/*_eeg.*"]
-        D2["sub-XX/eeg/*_events.tsv"]
-        D3["sub-XX/eeg/*_events.json (HED)"]
-        D4["sub-XX/eeg/*_channels.tsv"]
-        D5["dataset_description.json"]
-    end
-    subgraph ML["ML / DL Bridge"]
-        E1["NBIDSFDataset\nMOABB wrapper"]
-        E2["NeuroBIDSFlowTorchDataset\nPyTorch wrapper"]
-        E3["CSP+LDA baseline"]
-        E4["EEGNet (Braindecode)"]
-    end
-    G1 --> C1
-    A3 --> B3
-    A4 --> B4
-    A5 --> B5
-    B3 & B4 & B5 --> C1
-    C1 --> C2 --> D2
-    C1 --> C3
-    C1 --> C4
-    C1 --> D1
-    C1 --> D3
-    C1 --> D4
-    C1 --> D5
-    D1 & D2 & D3 --> E1
-    E1 --> E2
-    E1 --> E3
-    E1 --> E4
-```
-
----
-
-## Plugin Detection Flow
-
-```mermaid
-flowchart TD
-    A["Consumer EEG File"] --> B["EEGConverter.detect_plugin()"]
-    B --> C{Check extension + fingerprint}
-    C -->|".txt"| F["OpenBCIPlugin"]
-    C -->|".xdf or .csv"| G["MusePlugin"]
-    C -->|".edf"| H["EmotivPlugin"]
-    C -->|".vhdr"| D["BrainProductsPlugin"]
-    C -->|".cnt"| E["NeuroscanPlugin"]
-    C -->|"unknown"| I["ValueError: No plugin found"]
-    D & E & F & G & H --> J["plugin.read_raw()"]
-    J --> K["plugin.extract_events()"]
-    K --> L["plugin.get_metadata()"]
-    L --> M["EEGConverter writes BIDS output"]
-```
-
----
-
-## EventHarmonizer — Supported Input Formats
-
-Normalizes all consumer EEG marker types into a unified BIDS-compliant `events.tsv`:
-
-| Input Format | Example | Source |
-|---|---|---|
-| LSL Markers | Lab Streaming Layer stream | Muse XDF |
-| Software Strings | `eyes_open`, `workload_high` | Muse CSV, Emotiv |
-| EDF Annotations | Annotation-based labels | Emotiv EDF |
-| Numerical IDs | `1`, `2`, `99` | OpenBCI marker column |
-| TTL Triggers | `S  1`, `S  2` | BrainProducts, Neuroscan |
-
-Output columns: `onset | duration | trial_type | original_value | trigger_source`
-
----
-
-## HED Semantic Annotation
-
-NeuroBIDS-Flow automatically injects [Hierarchical Event Descriptors (HED)](https://www.hedtags.org) into the BIDS-EEG output when HED strings are defined in your config.
-
-```json
-{
-    "trial_type": {
-        "HED": {
-            "rest_open":      "Sensory-event, (Eyes, Open), Rest",
-            "rest_closed":    "Sensory-event, (Eyes, Closed), Rest",
-            "cognitive_high": "Cognitive-effort, Task-difficulty/High"
-        }
-    }
-}
-```
-
----
-
-## ML Pipeline
-
-NeuroBIDS-Flow provides a complete passive BCI classification pipeline on top of BIDS output:
+### Python API
 
 ```python
-# CSP + LDA baseline
-from neurobids_flow.sklearn_pipeline import run_pipeline
-results = run_pipeline(bids_root="./bids_output", task="workload")
-# Mean accuracy: 0.526 ± 0.114 (cross-device, synthetic data)
+# Target 1 — BIDS conversion
+from neurobids_flow import EEGConverter, load_config
+cfg = load_config("configs/default_config.yaml")
+converter = EEGConverter(cfg)
+converter.convert("sample.vhdr", bids_root="./bids_output", subject="01")
 
-# EEGNet deep learning
-from neurobids_flow.braindecode_pipeline import run_pipeline
-results = run_pipeline(bids_root="./bids_output", n_epochs=20)
-# Best val accuracy: 0.545 (above chance)
+# Target 1 — ML pipeline
+from neurobids_flow import NBIDSFDataset
+dataset = NBIDSFDataset(dataset_name="MyStudy", bids_root="./bids_output")
+X, y, metadata = dataset.get_data()
 
-# Cross-device evaluation
-from neurobids_flow.cross_device_eval import run_evaluation, print_summary_table
-rows = run_evaluation(bids_root="./bids_output")
-print_summary_table(rows)
+# Target 2 — SSVEP classification
+from neurobids_flow.ssvep import CCA, FBCCA, TRCA, SSVEPEvaluator
 
-# Reproducible splits
-from neurobids_flow.splits import generate_splits
-splits = generate_splits(bids_root="./bids_output", seed=42)
-# {'train': ['03', '02'], 'val': ['04'], 'test': ['01']}
+clf = FBCCA(stim_freqs=[6.0, 8.0, 10.0, 12.0], sfreq=256.0)
+preds = clf.predict(X)  # X: (n_epochs, n_channels, n_times)
+
+ev = SSVEPEvaluator(n_classes=4, epoch_duration=2.0)
+result = ev.evaluate(clf, X, y)
+print(f"Accuracy: {result.accuracy:.3f}  ITR: {result.itr_bpm:.1f} bits/min")
+
+# Target 2 — Full pipeline
+from neurobids_flow.ssvep import SSVEPPipeline, SSVEPConfig
+cfg = SSVEPConfig()
+cfg.bids_root = "./bids_output"
+cfg.stim_freqs = [6.0, 8.0, 10.0, 12.0]
+pipe = SSVEPPipeline(cfg)
+results = pipe.run()
 ```
 
 ---
 
-## YAML Configuration
-
-```yaml
-dataset:
-  name: "My Passive BCI Study"
-  authors: ["Your Name"]
-  institution: "Your Institution"
-
-recording:
-  task: "workload"
-  power_line_freq: 50.0
-
-event_mapping:
-  "eyes_open":
-    trial_type: "rest_open"
-    hed: "Sensory-event, (Eyes, Open), Rest"
-  "workload_high":
-    trial_type: "cognitive_high"
-    hed: "Cognitive-effort, Task-difficulty/High"
-
-output:
-  validate_bids: true
-  overwrite: true
-```
-
----
-
-## Test Results
-
-```
-120 passed in 15.4s
-```
-
-| Test Module | Tests |
-|---|---|
-| Plugin detection (5 plugins) | 11 |
-| EventHarmonizer + HED | 13 |
-| Dataset description | 5 |
-| MOABB wrapper | 30 |
-| PyTorch Dataset wrapper | 29 |
-| CSP+LDA pipeline | 8 |
-| EEGNet pipeline | 7 |
-| Cross-device evaluation | 7 |
-| Subject splits | 8 |
-| Pipeline demo | 2 |
-| **Total** | **120** |
-
----
-
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 neurobids-flow/
-    src/neurobids_flow/
-        plugins/
-            base.py                  # abstract plugin interface
-            brainproducts.py         # BrainProducts ActiChamp Plus
-            neuroscan.py             # Neuroscan NuAmps
-            openbci.py               # OpenBCI Cyton
-            muse.py                  # InteraXon Muse 2
-            emotiv.py                # Emotiv EPOC+
-        core/
-            converter.py             # pipeline orchestrator
-            harmonizer.py            # event normalization + HED injection
-            config.py                # YAML config loader
-            validator.py             # BIDS validation
-            dataset_description.py   # dataset_description.json generator
-        moabb_wrapper.py             # MOABB dataset wrapper (NBIDSFDataset)
-        torch_dataset.py             # PyTorch Dataset wrapper
-        sklearn_pipeline.py          # CSP+LDA baseline classifier
-        braindecode_pipeline.py      # EEGNet deep learning pipeline
-        cross_device_eval.py         # cross-device evaluation script
-        splits.py                    # reproducible train/val/test splits
-        pipeline_demo.py             # full end-to-end demo
-        cli.py                       # command line interface
-    sample_data/
-        generate_samples.py          # generates 60s sample EEG files (20 events)
-    configs/
-        default_config.yaml          # default configuration
-        splits.json                  # reproducible subject splits (seed=42)
-    tests/
-        test_plugins.py              # 29 tests
-        test_moabb_wrapper.py        # 30 tests
-        test_torch_dataset.py        # 29 tests
-        test_ml_pipeline.py          # 32 tests
+├── src/neurobids_flow/
+│   ├── plugins/                    # Target 1 — Hardware plugins
+│   │   ├── brainproducts.py        # BrainProducts ActiChamp (.vhdr)
+│   │   ├── neuroscan.py            # Neuroscan (.cnt)
+│   │   ├── openbci.py              # OpenBCI Cyton (.txt)
+│   │   ├── muse.py                 # Muse 2 (.csv / .xdf)
+│   │   └── emotiv.py               # Emotiv EPOC+ (.edf)
+│   ├── core/
+│   │   ├── converter.py            # Main BIDS converter
+│   │   ├── harmonizer.py           # EventHarmonizer ★
+│   │   └── config.py               # YAML config loader
+│   ├── moabb_wrapper.py            # NBIDSFDataset (MOABB bridge)
+│   ├── torch_dataset.py            # NeuroBIDSFlowTorchDataset
+│   ├── sklearn_pipeline.py         # CSP + LDA baseline
+│   ├── braindecode_pipeline.py     # EEGNet (Braindecode)
+│   ├── cross_device_eval.py        # Cross-device evaluation table
+│   ├── splits.py                   # Reproducible train/val/test splits
+│   ├── pipeline_demo.py            # Full end-to-end demo
+│   └── ssvep/                      # Target 2 — SSVEPFlow
+│       ├── preprocessor.py         # BIDS loader + filter + epoch
+│       ├── cca.py                  # CCA classifier
+│       ├── fbcca.py                # Filter Bank CCA
+│       ├── trca.py                 # TRCA / eTRCA
+│       ├── evaluator.py            # ITR, accuracy, confusion matrix
+│       ├── config.py               # YAML config dataclasses
+│       ├── pipeline.py             # End-to-end orchestrator
+│       ├── visualizer.py           # Result plots
+│       └── benchmark.py            # Cross-device benchmark
+├── tests/
+│   ├── test_plugins.py             # 29 plugin tests
+│   ├── test_moabb_wrapper.py       # 30 MOABB tests
+│   ├── test_torch_dataset.py       # 29 PyTorch tests
+│   ├── test_ml_pipeline.py         # 32 ML pipeline tests
+│   └── test_ssvep.py               # 66 SSVEPFlow tests
+├── sample_data/
+│   ├── generate_samples.py         # Synthetic EEG generator (60s, 20 events)
+│   └── generated/                  # 5 sample files (one per device)
+├── configs/
+│   ├── default_config.yaml         # Target 1 BIDS config
+│   ├── splits.json                 # Reproducible subject splits
+│   └── ssvep_config.yaml           # Target 2 SSVEP config
+└── docs/
+    └── architecture_v3.png         # System architecture diagram
 ```
 
 ---
 
-## Built With
+## 🔌 Supported Hardware
 
-- Python 3.11
-- [MNE-Python 1.11](https://mne.tools)
-- [MNE-BIDS 0.18](https://mne.tools/mne-bids)
-- [MOABB 1.1](https://moabb.neurotechx.com)
-- [PyTorch 2.10](https://pytorch.org)
-- [Braindecode 1.3](https://braindecode.org)
-- [HEDTools 0.5](https://www.hedtags.org)
-- [Dear PyGui](https://github.com/hoffstadt/DearPyGui)
-- [uv](https://github.com/astral-sh/uv)
+| Device | Format | Channels | Plugin |
+|--------|--------|----------|--------|
+| BrainProducts ActiChamp | `.vhdr` + `.vmrk` + `.eeg` | Up to 256 | `brainproducts.py` |
+| Neuroscan SynAmps | `.cnt` | Up to 64 | `neuroscan.py` |
+| OpenBCI Cyton | `.txt` | 8–16 | `openbci.py` |
+| Muse 2 | `.csv` / `.xdf` | 4 | `muse.py` |
+| Emotiv EPOC+ | `.edf` | 14 | `emotiv.py` |
 
 ---
 
-## Author
+## 📈 Results (Synthetic Data)
 
-Satpal Singh — National Institute of Technology Raipur
-Research Intern — NTU Singapore, BCI/CBCR Lab
+### Target 1 — Cross-Device ML Evaluation
+
+| Method | Accuracy | ITR (bits/min) |
+|--------|----------|----------------|
+| CSP + LDA | 0.526 ± 0.114 | — |
+| EEGNet (Braindecode) | 0.545 | — |
+| Full pipeline runtime | — | 17.4s |
+
+> Results on synthetic data — expect near-chance. Real passive BCI recordings will show above-chance performance.
+
+### Target 2 — SSVEP Classification (4-class)
+
+| Method | Description | Requires Training |
+|--------|-------------|-------------------|
+| CCA | Canonical Correlation Analysis | ❌ No |
+| FBCCA | Filter Bank CCA (5 sub-bands) | ❌ No |
+| TRCA / eTRCA | Task-Related Component Analysis | ✅ Yes |
+
+---
+
+## 🛠️ Built With
+
+- [MNE-Python](https://mne.tools/) — EEG processing
+- [MNE-BIDS](https://mne.tools/mne-bids/) — BIDS-EEG conversion
+- [HED Tools](https://www.hedtags.org/) — Semantic annotation
+- [MOABB](https://neurotechx.github.io/moabb/) — BCI benchmark framework
+- [PyTorch](https://pytorch.org/) — Deep learning
+- [Braindecode](https://braindecode.org/) — EEGNet
+- [scikit-learn](https://scikit-learn.org/) — CSP + LDA
+- [SciPy](https://scipy.org/) — Signal processing (FBCCA filters)
+- [Matplotlib](https://matplotlib.org/) — Visualizations
+
+---
+
+## 📄 Paper
+
+> **"Interoperable Passive BCI Workflows across Consumer EEG Sources through BIDS-EEG-Based Harmonization"**
+
+---
+
+## 👤 Author
+
+**Satpal** — Remote Research Intern, BCI Lab, NTU Singapore
+Supervisor: Prof. Aung Aung Phyo Wai
+
+---
+
+## 📜 License
+
+MIT License

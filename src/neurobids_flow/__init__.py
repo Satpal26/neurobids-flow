@@ -7,12 +7,14 @@ from .core.harmonizer import EventHarmonizer
 from .core.config import load_config
 from .moabb_wrapper import NBIDSFDataset
 from .torch_dataset import NeuroBIDSFlowTorchDataset
+from . import ssvep
 
-__version__ = "1.2.0"
+__version__ = "1.4.0"
 __all__ = [
     "EEGConverter",
     "EventHarmonizer",
     "load_config",
     "NBIDSFDataset",
     "NeuroBIDSFlowTorchDataset",
+    "ssvep",
 ]
