@@ -1,0 +1,5 @@
+device,n_subjects,n_channels,sfreq_hz,total_events,events_per_sub,bids_files,mean_duration_s,total_duration_s,alpha_power_uv2,load_time_s,bids_valid
+Muse 2 (InteraXon),37,5,256.0,0,0.0,37,371.1,13729.2,170.1178,9.77,PASS
+OpenBCI Cyton,120,8,250.0,60945,507.9,121,86.7,10400.6,70.9159,0.04,PASS
+Emotiv EPOC+,21,14,256.0,3291,156.7,21,3360.0,70559.9,15.3702,0.17,PASS
+BrainProducts actiCap,1,65,1000.0,0,0.0,2,184.0,184.0,36.6259,0.12,PASS
