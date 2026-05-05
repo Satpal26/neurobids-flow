@@ -32,3 +32,9 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints/
 demo_bids_output/
+
+datasets/
+
+results/target15/bids_output/
+
+datasets/emotiv/extracted/
