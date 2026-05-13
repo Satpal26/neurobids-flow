@@ -187,7 +187,7 @@ class SSVEPEvaluator:
         -------
         EvalResult
         """
-        needs_fit = hasattr(clf, "fit") and hasattr(clf, "_fitted")
+        needs_fit = hasattr(clf, "fit") and not hasattr(clf, "references_")
 
         # ── Full dataset eval ──────────────────────────────────────────────────
         if needs_fit:

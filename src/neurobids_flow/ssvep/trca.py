@@ -1,25 +1,19 @@
 """
 NeuroBIDS-Flow — SSVEP Task-Related Component Analysis (TRCA)
 =============================================================
-TRCA-based SSVEP recognition. Learns spatial filters that maximize
-inter-trial covariance — significantly outperforms CCA with enough training data.
+TRCA/eTRCA implementation — exact port of Nakanishi et al. (2018) MATLAB code.
 
 Reference:
-    Nakanishi et al. (2018) - Enhancing Detection of SSVEPs for a
+    Nakanishi et al. (2018). Enhancing Detection of SSVEPs for a
     High-Speed Brain Speller Using Task-Related Component Analysis.
-    IEEE Trans. Biomed. Eng.
-
-Usage:
-    from neurobids_flow.ssvep.trca import TRCA
-    clf = TRCA(stim_freqs=[6.0, 8.0, 10.0, 12.0], sfreq=256.0)
-    clf.fit(X_train, y_train)
-    labels = clf.predict(X_test)
+    IEEE Trans. Biomed. Eng., 65(1), 104-112.
+    Original MATLAB: https://github.com/mnakanishi/12JFPM_SSVEP
 """
 
 from __future__ import annotations
 
 import numpy as np
-from scipy.linalg import eigh
+from scipy.linalg import eig
 
 
 class TRCA:
@@ -35,8 +29,7 @@ class TRCA:
     n_components : int
         Number of spatial filters per class (usually 1).
     ensemble : bool
-        If True, use ensemble TRCA (eTRCA) — uses all class filters
-        together for prediction. More robust with few trials.
+        If True, use ensemble TRCA (eTRCA).
     """
 
     def __init__(
@@ -51,182 +44,151 @@ class TRCA:
         self.n_components = n_components
         self.ensemble = ensemble
 
-        self._filters: dict[int, np.ndarray] = {}    # class_idx -> (n_ch, n_comp)
-        self._templates: dict[int, np.ndarray] = {}  # class_idx -> (n_comp, n_times)
+        self._filters: dict[int, np.ndarray] = {}
+        self._templates: dict[int, np.ndarray] = {}
         self._fitted = False
 
-    # ── TRCA spatial filter computation ───────────────────────────────────────
     @staticmethod
-    def _compute_trca_filter(
-        X_class: np.ndarray,   # (n_trials, n_channels, n_times)
-        n_components: int,
-    ) -> np.ndarray:
+    def _trca_filter(X_class: np.ndarray) -> np.ndarray:
         """
-        Compute TRCA spatial filter W for one class.
+        Exact port of Nakanishi 2018 MATLAB trca() function.
 
-        Maximises inter-trial covariance:
-            W = argmax W^T S W  subject to W^T Q W = I
-        where:
-            S = sum_{i!=j} X_i X_j^T  (inter-trial covariance)
-            Q = X_all X_all^T          (overall covariance)
-
-        Returns
-        -------
-        W : np.ndarray, shape (n_channels, n_components)
+        X_class : (n_trials, n_ch, n_times)
+        Returns  : W (n_ch, 1)
         """
         n_trials, n_ch, n_times = X_class.shape
 
-        # Inter-trial covariance S
-        X_sum = X_class.sum(axis=0)      # (n_ch, n_times)
-        S = X_sum @ X_sum.T              # (n_ch, n_ch)
-        for trial in X_class:
-            S -= trial @ trial.T
-        S /= n_trials * (n_trials - 1)
+        # ── Inter-trial covariance S ──────────────────────────────────
+        # S = sum_{i<j} (X_i @ X_j.T + X_j @ X_i.T)
+        S = np.zeros((n_ch, n_ch))
+        for i in range(n_trials - 1):
+            xi = X_class[i]           # (n_ch, n_times)
+            for j in range(i + 1, n_trials):
+                xj = X_class[j]       # (n_ch, n_times)
+                S += xi @ xj.T + xj @ xi.T
 
-        # Total covariance Q
-        X_all = X_class.reshape(n_trials * n_ch, n_times)
-        Q = X_all.T @ X_all             # wrong shape — fix:
-        X_cat = X_class.reshape(-1, n_times)   # (n_trials*n_ch, n_times)
-        # Correct Q: sum of within-trial covariances
-        Q = np.zeros((n_ch, n_ch))
-        for trial in X_class:
-            Q += trial @ trial.T
-        Q /= n_trials
+        # ── Total covariance Q ────────────────────────────────────────
+        # Q = UX @ UX.T  where UX = [X_1 | X_2 | ... | X_n] (horizontal cat)
+        UX = X_class.reshape(n_trials * n_ch, n_times)
+        # Reshape to (n_ch, n_trials * n_times) — correct concat
+        UX = np.concatenate([X_class[t] for t in range(n_trials)], axis=1)
+        Q = UX @ UX.T   # (n_ch, n_ch)
 
-        # Regularise Q for numerical stability
-        Q += np.eye(n_ch) * 1e-6
-
-        # Generalised eigenvalue problem: S W = lambda Q W
-        n_comp = min(n_components, n_ch)
+        # ── Generalized eigenvalue: S w = lambda Q w ──────────────────
         try:
-            eigenvalues, eigenvectors = eigh(S, Q, subset_by_index=[n_ch - n_comp, n_ch - 1])
-            # Take top n_comp (largest eigenvalues)
+            eigenvalues, eigenvectors = eig(S, Q)
+            eigenvalues = eigenvalues.real
+            eigenvectors = eigenvectors.real
+            # Take eigenvector with largest real eigenvalue
             idx = np.argsort(eigenvalues)[::-1]
-            W = eigenvectors[:, idx[:n_comp]]
+            W = eigenvectors[:, idx[0:1]]   # (n_ch, 1)
         except Exception:
-            W = np.eye(n_ch)[:, :n_comp]
+            W = np.ones((n_ch, 1)) / np.sqrt(n_ch)
 
-        return W  # (n_ch, n_comp)
+        return W  # (n_ch, 1)
 
-    # ── Fit ───────────────────────────────────────────────────────────────────
     def fit(self, X: np.ndarray, y: np.ndarray) -> "TRCA":
         """
-        Fit TRCA spatial filters from training data.
+        Fit TRCA spatial filters.
 
-        Parameters
-        ----------
-        X : np.ndarray, shape (n_epochs, n_channels, n_times)
-        y : np.ndarray, shape (n_epochs,) — integer class labels (0-based)
+        X : (n_epochs, n_channels, n_times)
+        y : (n_epochs,) integer class labels 0-based
         """
         classes = np.unique(y)
         self._filters = {}
         self._templates = {}
 
         for cls in classes:
-            X_cls = X[y == cls]  # (n_trials, n_ch, n_times)
-            if X_cls.shape[0] < 2:
-                # Not enough trials — use identity filter
-                n_ch = X_cls.shape[1]
-                n_comp = min(self.n_components, n_ch)
-                W = np.eye(n_ch)[:, :n_comp]
-            else:
-                W = self._compute_trca_filter(X_cls, self.n_components)
+            X_cls = X[y == cls]        # (n_trials, n_ch, n_times)
+            n_trials = X_cls.shape[0]
 
-            # Template: mean trial projected through filter
-            template = (W.T @ X_cls.mean(axis=0))  # (n_comp, n_times)
-            self._filters[int(cls)] = W
-            self._templates[int(cls)] = template
+            if n_trials < 2:
+                n_ch = X_cls.shape[1]
+                W = np.ones((n_ch, 1)) / np.sqrt(n_ch)
+            else:
+                W = self._trca_filter(X_cls)
+
+            # Template = mean across trials in channel space
+            template = X_cls.mean(axis=0)  # (n_ch, n_times)
+
+            self._filters[int(cls)] = W          # (n_ch, 1)
+            self._templates[int(cls)] = template  # (n_ch, n_times)
 
         self._fitted = True
         return self
 
-    # ── Score one epoch ────────────────────────────────────────────────────────
     def _score_epoch(self, epoch: np.ndarray) -> np.ndarray:
         """
-        Compute correlation score between epoch and each class template.
+        Score epoch against all class templates.
 
-        Returns
-        -------
-        scores : np.ndarray, shape (n_classes,)
+        For eTRCA: concatenate all W, project epoch and each template,
+        compute sum of squared correlations across all components.
+
+        Returns scores : (n_classes,)
         """
         classes = sorted(self._filters.keys())
-        scores = np.zeros(len(classes))
+        n_classes = len(classes)
+        scores = np.zeros(n_classes)
 
-        for i, cls in enumerate(classes):
-            W = self._filters[cls]          # (n_ch, n_comp)
-            template = self._templates[cls] # (n_comp, n_times)
+        if self.ensemble:
+            # eTRCA: (n_ch, n_classes) — one filter per class
+            all_W = np.concatenate(
+                [self._filters[c] for c in classes], axis=1
+            )  # (n_ch, n_classes)
 
-            if self.ensemble:
-                # eTRCA: use all class filters together
-                all_W = np.concatenate(
-                    [self._filters[c] for c in classes], axis=1
-                )  # (n_ch, total_comp)
-                ep_proj = all_W.T @ epoch       # (total_comp, n_times)
-                tp_proj = all_W.T @ (W @ template)  # project template same way... simplified:
-                # Standard eTRCA correlation
-                ep_proj = all_W.T @ epoch
-                tp_proj = all_W.T @ (W @ template)
-            else:
-                ep_proj = W.T @ epoch     # (n_comp, n_times)
-                tp_proj = template        # (n_comp, n_times)
+            # Project epoch: (n_classes, n_times)
+            ep_proj = all_W.T @ epoch
 
-            # Correlation between projected epoch and template
-            corrs = []
-            for comp_ep, comp_tp in zip(ep_proj, tp_proj):
-                if comp_ep.std() < 1e-12 or comp_tp.std() < 1e-12:
-                    corrs.append(0.0)
+            for i, cls in enumerate(classes):
+                tp_proj = all_W.T @ self._templates[cls]  # (n_classes, n_times)
+
+                # Sum of squared correlations across all components
+                r_sum = 0.0
+                for k in range(ep_proj.shape[0]):
+                    ep_k = ep_proj[k]
+                    tp_k = tp_proj[k]
+                    std_e = ep_k.std()
+                    std_t = tp_k.std()
+                    if std_e > 1e-12 and std_t > 1e-12:
+                        r = float(np.corrcoef(ep_k, tp_k)[0, 1])
+                        r_sum += r ** 2
+                scores[i] = r_sum
+
+        else:
+            for i, cls in enumerate(classes):
+                W = self._filters[cls]               # (n_ch, 1)
+                ep_proj = W.T @ epoch                # (1, n_times)
+                tp_proj = W.T @ self._templates[cls] # (1, n_times)
+
+                ep_k = ep_proj[0]
+                tp_k = tp_proj[0]
+                if ep_k.std() > 1e-12 and tp_k.std() > 1e-12:
+                    r = float(np.corrcoef(ep_k, tp_k)[0, 1])
+                    scores[i] = r ** 2
                 else:
-                    r = float(np.corrcoef(comp_ep, comp_tp)[0, 1])
-                    corrs.append(abs(r))
-            scores[i] = np.mean(corrs)
+                    scores[i] = 0.0
 
         return scores
 
-    # ── Public API ─────────────────────────────────────────────────────────────
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """
-        Predict class label for each epoch.
-
-        Parameters
-        ----------
-        X : np.ndarray, shape (n_epochs, n_channels, n_times)
-
-        Returns
-        -------
-        labels : np.ndarray, shape (n_epochs,) — predicted class index (0-based)
-        """
+        """Predict class for each epoch. X: (n_epochs, n_ch, n_times)"""
         if not self._fitted:
-            raise RuntimeError("TRCA.fit() must be called before predict().")
+            raise RuntimeError("Call fit() before predict().")
         return np.array([np.argmax(self._score_epoch(ep)) for ep in X])
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """
-        Return TRCA correlation scores per class.
-
-        Returns
-        -------
-        scores : np.ndarray, shape (n_epochs, n_classes)
-        """
+        """Return scores. Returns (n_epochs, n_classes)"""
         if not self._fitted:
-            raise RuntimeError("TRCA.fit() must be called before predict_proba().")
+            raise RuntimeError("Call fit() before predict_proba().")
         return np.stack([self._score_epoch(ep) for ep in X], axis=0)
 
     def score(self, X: np.ndarray, y: np.ndarray) -> float:
-        """
-        Classification accuracy.
-
-        Parameters
-        ----------
-        X : np.ndarray, shape (n_epochs, n_channels, n_times)
-        y : np.ndarray, shape (n_epochs,) — integer class labels (0-based)
-        """
-        preds = self.predict(X)
-        return float(np.mean(preds == y))
+        """Classification accuracy."""
+        return float(np.mean(self.predict(X) == y))
 
     def __repr__(self) -> str:
         status = "fitted" if self._fitted else "not fitted"
         return (
             f"TRCA(freqs={self.stim_freqs}, sfreq={self.sfreq}, "
-            f"n_components={self.n_components}, "
             f"ensemble={self.ensemble}, {status})"
         )
